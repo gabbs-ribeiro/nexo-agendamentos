@@ -1,10 +1,10 @@
 import { useMemo, useReducer, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { createPublicBooking } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import Notice from '../../components/Notice.jsx'
 import { saveConfirmation } from './ConfirmedPage.jsx'
-import { STEPS, initialState, reducer } from './bookingReducer.js'
+import { STEPS, initialBookingState, reducer } from './bookingReducer.js'
 import StepService from './StepService.jsx'
 import StepDateTime from './StepDateTime.jsx'
 import StepDetails from './StepDetails.jsx'
@@ -13,8 +13,9 @@ import { usePublic } from './usePublic.js'
 
 export default function BookingPage() {
   const { slug, business, services } = usePublic()
+  const location = useLocation()
   const navigate = useNavigate()
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const [state, dispatch] = useReducer(reducer, location.state?.optionId, initialBookingState)
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState(null)
 

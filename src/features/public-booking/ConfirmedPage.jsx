@@ -23,10 +23,16 @@ export default function ConfirmedPage() {
   const wa = whatsappUrl(business.contact_phone)
 
   return (
-    <div className="stack">
+    <div className="confirmation-page stack">
+      <section className="confirmation-welcome">
+        <span className="confirmation-mark" aria-hidden="true">✓</span>
+        <p className="eyebrow">Tudo certo!</p>
+        <h1>Obrigado por agendar com a gente.</h1>
+        <p>O atendimento do seu pet está marcado. Confira os detalhes abaixo.</p>
+      </section>
       <article className="ticket" aria-labelledby="ticket-title">
         <div className="ticket-head">
-          <h1 id="ticket-title">Agendamento confirmado</h1>
+          <h2 id="ticket-title">Serviço agendado</h2>
           <p>{business.name}</p>
         </div>
         <div className="ticket-body">

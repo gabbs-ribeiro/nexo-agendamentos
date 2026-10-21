@@ -14,6 +14,12 @@ export const initialState = {
   form: initialForm,
 }
 
+export function initialBookingState(optionId = null) {
+  return optionId
+    ? { ...initialState, step: 'datetime', optionId }
+    : initialState
+}
+
 export function reducer(state, action) {
   switch (action.type) {
     case 'option':   // trocar servico/porte invalida data e horario (duracao diferente)

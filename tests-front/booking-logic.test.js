@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { reducer, initialState, STEPS } from '../src/features/public-booking/bookingReducer.js'
+import { reducer, initialBookingState, initialState, STEPS } from '../src/features/public-booking/bookingReducer.js'
 import { validateDetails } from '../src/features/public-booking/validation.js'
 import { whatsappUrl } from '../src/lib/format.js'
 
@@ -8,6 +8,15 @@ const slotA = { starts_at: '2026-10-23T13:00:00+00:00', local_time: '10:00' }
 
 test('passos na ordem esperada', () => {
   assert.deepEqual(STEPS, ['service', 'datetime', 'details'])
+})
+
+test('reserva iniciada no serviço escolhido na página pública abre seleção de horário', () => {
+  const state = initialBookingState('option-1')
+  assert.equal(state.step, 'datetime')
+  assert.equal(state.optionId, 'option-1')
+  assert.equal(state.date, null)
+  assert.equal(state.slot, null)
+  assert.equal(initialBookingState().step, 'service')
 })
 
 test('escolher horario gera uma chave de idempotencia nova a cada escolha', () => {

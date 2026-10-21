@@ -26,6 +26,12 @@ export default function BookingList({ bookings, timezone, emptyText = 'Nenhum ag
                 <span className="booking-list-price">{formatBRL(booking.price_cents)}</span>
               </div>
               {booking.size_label && <span className="booking-size">{booking.size_label}</span>}
+              {booking.notes && (
+                <p className="booking-customer-note">
+                  <strong>Observação do cliente</strong>
+                  <span>{booking.notes}</span>
+                </p>
+              )}
               {booking.internal_notes && (
                 <p className="booking-internal-note">
                   <strong>Anotação interna</strong>
