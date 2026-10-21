@@ -30,7 +30,7 @@ export default function StepDateTime({ slug, business, optionId, date, slot, not
       <h1 ref={h1} tabIndex={-1}>Escolha o dia e o horário</h1>
       {notice && <Notice tone="error">{notice}</Notice>}
 
-      <div className="days" role="group" aria-label="Dias disponíveis para agendar">
+      <div className="days booking-days" role="group" aria-label="Dias disponíveis para agendar">
         {days.map((d) => {
           const p = dayChipParts(d)
           return (

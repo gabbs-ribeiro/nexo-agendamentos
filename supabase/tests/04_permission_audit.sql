@@ -10,11 +10,11 @@ with
 -- funcoes que o cliente publico (anon) pode executar
 allowed_anon(fn) as (values
   ('get_public_business'), ('list_public_services'),
-  ('get_available_slots'), ('create_public_booking')),
+  ('list_public_service_categories'), ('get_available_slots'), ('create_public_booking')),
 -- funcoes que usuarios logados podem executar (as publicas + admin)
 allowed_auth(fn) as (values
   ('get_public_business'), ('list_public_services'),
-  ('get_available_slots'), ('create_public_booking'),
+  ('list_public_service_categories'), ('get_available_slots'), ('create_public_booking'),
   ('admin_create_booking'), ('admin_set_booking_status'),
   ('admin_reschedule_booking'), ('admin_update_booking_details'),
   ('admin_create_time_block'), ('admin_update_booking_internal_notes')),
@@ -24,7 +24,7 @@ forbidden_auth(tbl, priv) as (values
   ('time_blocks','insert'), ('time_blocks','update'), ('time_blocks','truncate'),
   ('business_members','insert'), ('business_members','update'), ('business_members','delete'),
   ('businesses','insert'), ('businesses','delete'),
-  ('services','delete'), ('service_options','delete'))
+  ('services','delete'), ('service_options','delete'), ('service_categories','delete'))
 select * from (
 
   -- 1) tabela sem RLS

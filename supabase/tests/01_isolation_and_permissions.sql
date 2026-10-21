@@ -71,6 +71,10 @@ begin
   assert n = 3, 'A deveria ver os 3 portes de A, viu ' || n;
   select count(*) into n from public.business_sizes where business_id = 'b0000000-0000-0000-0000-0000000000b1';
   assert n = 0, 'A enxergou portes de B';
+  select count(*) into n from public.service_categories;
+  assert n = 2, 'A deveria ver apenas as categorias da Loja A, viu ' || n;
+  select count(*) into n from public.service_categories where business_id = 'b0000000-0000-0000-0000-0000000000b1';
+  assert n = 0, 'A enxergou categorias de B';
   select count(*) into n from public.business_hours where business_id = 'b0000000-0000-0000-0000-0000000000b1';
   assert n = 0, 'A enxergou horarios de B';
   select count(*) into n from public.bookings;
@@ -91,6 +95,9 @@ begin
   update public.business_sizes set name = 'invadido' where business_id = 'b0000000-0000-0000-0000-0000000000b1';
   get diagnostics n = row_count;
   assert n = 0, 'A conseguiu alterar portes de B';
+  update public.service_categories set name = 'invadido' where business_id = 'b0000000-0000-0000-0000-0000000000b1';
+  get diagnostics n = row_count;
+  assert n = 0, 'A conseguiu alterar categorias de B';
   delete from public.time_blocks where business_id = 'b0000000-0000-0000-0000-0000000000b1';
   get diagnostics n = row_count;
   assert n = 0, 'A conseguiu apagar bloqueio de B';
@@ -143,6 +150,14 @@ begin
     raise exception 'FAIL: A criou porte dentro de B';
   exception when insufficient_privilege then
     raise notice 'PASS: INSERT de porte em B bloqueado';
+  end;
+
+  begin
+    insert into public.service_categories (business_id, name)
+    values ('b0000000-0000-0000-0000-0000000000b1', 'Categoria de B');
+    raise exception 'FAIL: A criou categoria dentro de B';
+  exception when insufficient_privilege then
+    raise notice 'PASS: INSERT de categoria em B bloqueado';
   end;
 
   -- Opcao de A apontando para servico de B: bloqueada (RLS e/ou FK composta)
@@ -295,6 +310,8 @@ begin
   exception when insufficient_privilege then null; end;
   begin perform 1 from public.business_sizes;   raise exception 'FAIL: anon leu business_sizes';
   exception when insufficient_privilege then null; end;
+  begin perform 1 from public.service_categories; raise exception 'FAIL: anon leu service_categories';
+  exception when insufficient_privilege then null; end;
   begin insert into public.bookings (business_id) values ('a0000000-0000-0000-0000-0000000000a1');
         raise exception 'FAIL: anon inseriu em bookings';
   exception when insufficient_privilege then null; end;
@@ -325,6 +342,10 @@ begin
   assert jsonb_array_length(r) = 1, 'anon deveria ver so servicos ATIVOS de A: ' || r::text;
   assert r::text not like '%Servico inativo A%', 'servico inativo vazou';
   assert r::text not like '%Banho B%', 'servico de outro negocio vazou';
+  r := public.list_public_service_categories('loja-a');
+  assert jsonb_array_length(r) = 2, 'categorias publicas de A nao foram listadas: ' || r::text;
+  assert r::text like '%Banho A%' and r::text not like '%Banho B%',
+    'categorias publicas vazaram servicos de outro negocio: ' || r::text;
   raise notice 'PASS: funcoes publicas expoem apenas o necessario';
 end $$;
 reset role;

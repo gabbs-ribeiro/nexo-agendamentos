@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Outlet, useParams } from 'react-router-dom'
-import { getPublicBusiness, listPublicServices, logoUrl } from '../../lib/api.js'
+import { getPublicBusiness, listPublicServiceCategories, listPublicServices, logoUrl } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { brandOrDefault, readableOn } from '../../lib/format.js'
 import Notice from '../../components/Notice.jsx'
@@ -21,8 +21,12 @@ export default function PublicLayout() {
   const load = useCallback(async () => {
     setState({ status: 'loading' })
     try {
-      const [business, services] = await Promise.all([getPublicBusiness(slug), listPublicServices(slug)])
-      setState(business ? { status: 'ready', business, services } : { status: 'notfound' })
+      const [business, services, categories] = await Promise.all([
+        getPublicBusiness(slug),
+        listPublicServices(slug),
+        listPublicServiceCategories(slug),
+      ])
+      setState(business ? { status: 'ready', business, services, categories } : { status: 'notfound' })
     } catch (err) {
       setState({ status: 'error', message: messageFor(err) })
     }
@@ -57,7 +61,7 @@ export default function PublicLayout() {
     )
   }
 
-  const { business, services } = state
+  const { business, services, categories } = state
   const brand = brandOrDefault(business.primary_color)
   return (
     <div className="shell" style={{ '--brand': brand, '--on-brand': readableOn(brand) }}>
@@ -68,7 +72,7 @@ export default function PublicLayout() {
         </Link>
       </header>
       <main className="page">
-        <Outlet context={{ slug, business, services }} />
+        <Outlet context={{ slug, business, services, categories }} />
       </main>
       <footer className="site-footer small muted">
         <Link to={`/${slug}/privacidade`}>Aviso de privacidade</Link>

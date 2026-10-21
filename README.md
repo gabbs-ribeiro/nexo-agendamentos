@@ -2,7 +2,7 @@
 
 Sistema de agendamento multi-negócio. MVP: banho e tosa de pets. Stack: React + Vite, Supabase (Postgres + Auth), Vercel.
 
-> **Status atual:** o responsável informa que as migrations até `20261021000002_admin_control_catalog.sql` foram executadas no projeto Supabase de DEV. A definição instalada de `get_public_business` foi inspecionada e está sem `contact_phone`, causando falha no teste 01. A migration corretiva `20261021000003_restore_public_business_contact.sql` foi adicionada ao repositório e ainda precisa ser aplicada no DEV; depois, repetir os testes 01–04 e 08–09. URL e chave pública anon estão na Vercel; o usuário responsável foi criado manualmente no Supabase Auth.
+> **Status atual:** o responsável informa que as migrations anteriores foram executadas no DEV e compartilhou uma atualização de `get_public_business` para incluir `contact_phone`; a validação final do teste 01 após essa correção não está registrada aqui. A migration `20261021000004_service_categories.sql` é nova e precisa ser aplicada manualmente em DEV antes de validar categorias e publicar esta versão. URL e chave pública anon estão na Vercel; o usuário responsável foi criado manualmente no Supabase Auth.
 
 ## Estrutura
 ```
@@ -17,16 +17,16 @@ docs/                  # HANDOFF_COPILOT.md, TESTES.md
 ```
 
 ## Supabase: estado e configuração
-- O responsável informa que as migrations até `20261021000002_admin_control_catalog.sql` foram executadas no DEV. A definição instalada de `get_public_business` estava sem `contact_phone`; a migration corretiva `20261021000003_restore_public_business_contact.sql` precisa ser aplicada manualmente em DEV.
-- Após aplicar a migration corretiva, rode novamente os testes 01–04 e 08–09 em DEV; a primeira consulta do teste 04 deve retornar zero linhas.
+- O responsável informa que as migrations anteriores foram executadas no DEV e compartilhou uma atualização de `get_public_business` para incluir `contact_phone`; confirme o resultado do teste 01 após a correção.
+- A migration `20261021000004_service_categories.sql` adiciona categorias editáveis por negócio. Aplique-a somente em DEV e rode os testes SQL 01, 04 e 09; a primeira consulta do teste 04 deve retornar zero linhas.
 - O usuário responsável já foi criado manualmente no Supabase Auth; não há cadastro público no aplicativo.
 - A URL do projeto e a chave pública anon já foram configuradas nas variáveis de ambiente da Vercel. Nunca configure `service_role` ou `sb_secret_...` no frontend ou em variáveis `VITE_*`.
 - O login está disponível em `/login`. Para liberar o acesso administrativo, a conta também precisa ter vínculo com o negócio em `business_members` (papel `owner`). A interface confere sessão e vínculo; autenticar sozinho não concede acesso.
-- O painel contém Início com compromissos e link público copiável/compartilhável, Calendário diário com criação manual via RPC, detalhes e cancelamento. O cabeçalho e a página de agendamento mostram logo e nome do estabelecimento; Nexo Agendamentos aparece discretamente no rodapé. A aba Controle edita nome/foto/cor e o WhatsApp público, além de administrar portes e serviços. Na página pública, o tutor escolhe um serviço e um porte por reserva; preço e duração acompanham a opção, e cada pet/serviço adicional exige outro horário.
+- O painel contém Início com compromissos e link público copiável/compartilhável, Calendário diário com criação manual via RPC, detalhes, cancelamento e conclusão de agendamentos pela RPC administrativa. Agendamentos concluídos permanecem visíveis com identificação diferente. O cabeçalho e a página de agendamento mostram logo e nome do estabelecimento; Nexo Agendamentos aparece discretamente no rodapé. A aba Controle edita perfil, WhatsApp, portes, categorias e serviços. A página pública agrupa serviços em categorias editáveis; o tutor escolhe um serviço e um porte por reserva, e cada pet/serviço adicional exige outro horário.
 - Os detalhes internos da configuração e as pendências de validação estão em `docs/HANDOFF_COPILOT.md` e `docs/TESTES.md`.
 
 ## Front: rodar localmente
-`cp .env.example .env.local` (preencher com URL e chave **anon** do projeto de DEV) → `npm install` → `npm run dev`. Testes do front: `npm test`. Build: `npm run build`. Páginas: `/<slug>` (cliente), `/login` e `/admin` (responsável). A chave `service_role` nunca entra no frontend.
+`cp .env.example .env.local` (preencher com URL e chave **anon** do projeto de DEV) → `npm install` → `npm run dev`. Testes do front: `npm test`. Build: `npm run build`. Páginas: `/<slug>` (cliente), `/login` e `/admin` (responsável). A migration de categorias deve estar aplicada no DEV antes de testar a nova interface pública/Controle. A chave `service_role` nunca entra no frontend.
 
 ## Backup manual mensal (decisão D15)
 O plano gratuito não deve ser tratado como garantia de backup. Uma vez por mês (e antes de qualquer migration em produção):

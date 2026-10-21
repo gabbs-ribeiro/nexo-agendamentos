@@ -7,7 +7,7 @@ import ServiceCard from './ServiceCard.jsx'
 import { usePublic } from './usePublic.js'
 
 export default function ServicesPage() {
-  const { slug, business, services } = usePublic()
+  const { slug, business, services, categories } = usePublic()
   const [selectedOptionId, setSelectedOptionId] = useState(() => services[0]?.options[0]?.option_id ?? '')
   const selected = findSelectedService(services, selectedOptionId)
   const wa = whatsappUrl(business.contact_phone)
@@ -29,17 +29,32 @@ export default function ServicesPage() {
           <span className="public-service-count">{services.length} {services.length === 1 ? 'serviço' : 'serviços'}</span>
         </div>
 
-        {services.length === 0 ? (
-          <Notice>Este estabelecimento ainda não publicou os serviços. Tente novamente mais tarde.</Notice>
+        {categories.length === 0 ? (
+          <Notice>Este estabelecimento ainda não publicou categorias de serviços.</Notice>
         ) : (
           <div className="public-service-list">
-            {services.map((service) => (
-              <ServiceCard
-                key={service.service_id}
-                service={service}
-                selectedOptionId={selectedOptionId}
-                onSelectOption={setSelectedOptionId}
-              />
+            {categories.map((category) => (
+              <section className="public-category-card" key={category.category_id} aria-labelledby={`public-category-${category.category_id}`}>
+                <header className="public-category-heading">
+                  <div>
+                    <h3 id={`public-category-${category.category_id}`}>{category.name}</h3>
+                    {category.description && <p>{category.description}</p>}
+                  </div>
+                  <span>{category.services.length} {category.services.length === 1 ? 'serviço' : 'serviços'}</span>
+                </header>
+                {category.services.length === 0
+                  ? <p className="public-category-empty">Novos serviços desta categoria serão publicados em breve.</p>
+                  : <div className="public-category-services">
+                    {category.services.map((service) => (
+                      <ServiceCard
+                        key={service.service_id}
+                        service={service}
+                        selectedOptionId={selectedOptionId}
+                        onSelectOption={setSelectedOptionId}
+                      />
+                    ))}
+                  </div>}
+              </section>
             ))}
           </div>
         )}
@@ -47,21 +62,14 @@ export default function ServicesPage() {
 
       {selected && (
         <section className="public-cart-card" aria-labelledby="public-cart-title" aria-live="polite">
-          <div className="public-cart-heading">
-            <div>
-              <p className="eyebrow">Um serviço por horário</p>
-              <h2 id="public-cart-title">Seu atendimento</h2>
-            </div>
-            <span className="public-cart-count">1 pet · 1 serviço</span>
-          </div>
           <div className="public-cart-line">
-            <div>
+            <div id="public-cart-title">
               <strong>{selected.service.name}</strong>
-              <span>{selected.option.size_label} · {formatDuration(selected.option.duration_minutes)}</span>
+              <span>Porte {selected.option.size_label} · {formatDuration(selected.option.duration_minutes)}</span>
             </div>
             <strong className="public-cart-price">{formatBRL(selected.option.price_cents)}</strong>
           </div>
-          <p className="small muted">Para incluir outro serviço ou animal, será necessário reservar outro horário.</p>
+          <p className="small muted">1 serviço e 1 pet por horário.</p>
           <Link
             className="btn btn-primary"
             to={`/${slug}/agendar`}

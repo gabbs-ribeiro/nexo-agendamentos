@@ -308,6 +308,18 @@ button, input, textarea, select { accent-color: var(--accent); }
 .service-option-summary strong { min-width: 5.5ch; text-align: right; }
 .service-card-actions { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
 .service-card-actions .btn { width: auto; min-height: 42px; padding-inline: 18px; }
+.category-admin-list { display: grid; gap: 10px; }
+.category-admin-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #fffaf4;
+}
+.category-admin-card h3, .service-category-group > h3 { font-size: 1.05rem; }
+.category-admin-card p { margin-top: 4px; overflow-wrap: anywhere; }
+.category-admin-card .small { display: block; margin-top: 5px; }
+.category-admin-card .btn { width: auto; min-height: 42px; padding-inline: 14px; flex: none; }
+.service-category-group { display: grid; gap: 12px; }
+.service-category-group + .service-category-group { padding-top: 18px; border-top: 1px solid var(--line); }
+.service-category-group > .service-cards { margin-top: 0; }
 .service-editor { padding: clamp(18px, 4vw, 28px); background: #fff5ec; border: 1px solid #f2d5c4; border-radius: 22px; }
 .service-size-options { display: grid; gap: 12px; }
 .service-size-options legend { margin-bottom: 0; }
@@ -340,6 +352,8 @@ button, input, textarea, select { accent-color: var(--accent); }
   .admin-hero { min-height: 170px; border-radius: 22px; }
   .hero-paw { position: absolute; right: 18px; bottom: 12px; opacity: .48; }
   .control-card { border-radius: 22px; }
+  .category-admin-card { align-items: flex-start; flex-direction: column; }
+  .category-admin-card .btn { width: 100%; }
   .size-row { grid-template-columns: minmax(0, 1fr) auto; }
   .size-status { grid-column: 1 / -1; justify-self: start; }
   .add-size-form { grid-template-columns: 1fr; }
@@ -382,6 +396,7 @@ button, input, textarea, select { accent-color: var(--accent); }
 }
 .booking-timeline { display: grid; gap: 13px; margin: 0; padding: 0; list-style: none; }
 .booking-timeline-item { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 13px; align-items: start; }
+.booking-timeline-content { display: grid; gap: 7px; min-width: 0; }
 .timeline-time { display: grid; justify-items: end; gap: 3px; padding-top: 15px; font-variant-numeric: tabular-nums; }
 .timeline-time time { color: #9b5539; font-weight: 800; }
 .timeline-time span { color: var(--muted); font-size: .8rem; }
@@ -392,6 +407,20 @@ button, input, textarea, select { accent-color: var(--accent); }
   text-decoration: none; transition: transform .15s ease, border-color .15s ease;
 }
 .booking-card-link:hover { transform: translateY(-1px); border-color: #ef906b; }
+.booking-timeline-item[data-status='completed'] .booking-card-link {
+  color: #3e5143; background: #edf4ec; border-color: #ccddc9; box-shadow: none;
+}
+.booking-timeline-item[data-status='completed'] .booking-card-heading > div > span,
+.booking-timeline-item[data-status='completed'] .booking-size { color: #627567; }
+.booking-timeline-item[data-status='completed'] .booking-card-link .booking-list-price { color: #486b4c; }
+.booking-status-completed { align-self: start; justify-self: start; color: #315b38; background: #dcebd9; }
+.booking-status-pending { align-self: start; justify-self: start; color: #ffc1a1; background: rgb(239 144 107 / 18%); }
+.booking-complete-button {
+  justify-self: start; min-height: 34px; padding: 5px 12px; border: 1px solid #d7c2b1;
+  border-radius: 999px; color: #6b4534; background: #fffdf8; font: 700 .8rem var(--font); cursor: pointer;
+}
+.booking-complete-button:hover:not(:disabled) { background: #fff0e5; border-color: #d7a88e; }
+.booking-complete-button:disabled { opacity: .55; cursor: wait; }
 .booking-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .booking-card-heading > div { display: grid; gap: 3px; min-width: 0; }
 .booking-card-heading strong { font-size: 1.05rem; }
@@ -435,6 +464,13 @@ button, input, textarea, select { accent-color: var(--accent); }
   border: 1px solid var(--line); border-radius: 24px; color: var(--ink); background: var(--bg);
 }
 .manual-booking-dialog::backdrop { background: rgb(31 24 21 / 65%); backdrop-filter: blur(3px); }
+.control-editor-dialog {
+  width: min(calc(100vw - 32px), 720px); max-height: min(92dvh, 920px);
+  padding: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 24px;
+  color: var(--ink); background: var(--bg); overscroll-behavior: contain;
+}
+.control-editor-dialog::backdrop { background: rgb(31 24 21 / 65%); backdrop-filter: blur(3px); }
+.control-editor-dialog .service-editor { border: 0; border-radius: 0; }
 .manual-booking-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .manual-booking-heading .btn-text { white-space: nowrap; }
 .manual-slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px; }
@@ -458,6 +494,18 @@ button, input, textarea, select { accent-color: var(--accent); }
 .public-section-heading h2 { margin-top: 4px; font-size: 1.4rem; }
 .public-service-count { color: var(--muted); font-size: .85rem; white-space: nowrap; }
 .public-service-list { display: grid; gap: 14px; }
+.public-category-card {
+  display: grid; gap: 14px; min-width: 0; padding: clamp(16px, 3vw, 22px);
+  border: 1px solid var(--line); border-radius: 22px; background: #fffaf4;
+  box-shadow: 0 10px 25px rgb(84 53 39 / 5%);
+}
+.public-category-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.public-category-heading h3 { font-size: clamp(1.15rem, 3vw, 1.4rem); line-height: 1.2; }
+.public-category-heading p { margin-top: 5px; color: var(--muted); }
+.public-category-heading > span { flex: none; color: var(--muted); font-size: .8rem; white-space: nowrap; }
+.public-category-services { display: grid; gap: 10px; }
+.public-category-services .public-service-card { padding: 16px; border-radius: 17px; box-shadow: none; }
+.public-category-empty { padding: 12px; border-radius: 12px; color: var(--muted); background: var(--surface); }
 .public-service-card {
   display: grid; gap: 16px; padding: clamp(18px, 4vw, 24px);
   border: 1px solid var(--line); border-radius: 22px; background: var(--surface);
@@ -476,25 +524,26 @@ button, input, textarea, select { accent-color: var(--accent); }
   background: #fffaf4; text-align: left; font: inherit; cursor: pointer;
 }
 .public-size-option strong { color: #8e4b31; font-size: .94rem; }
+.public-size-option .public-size-label { color: var(--ink); font-weight: 700; }
 .public-size-option small { color: var(--muted); }
 .public-size-option[aria-pressed='true'] { border-color: #d47752; background: #fff0e5; box-shadow: inset 0 0 0 1px #d47752; }
 .public-service-current-price { padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); }
 .public-service-current-price strong { color: var(--ink); font-size: 1.05rem; }
 .public-cart-card {
-  position: sticky; bottom: 12px; z-index: 3; display: grid; gap: 14px;
-  padding: 20px; border: 1px solid #483a34; border-radius: 22px; color: #fff8f2;
+  position: sticky; bottom: 12px; z-index: 3; display: grid; gap: 7px;
+  padding: 12px 14px; border: 1px solid #483a34; border-radius: 18px; color: #fff8f2;
   background: #292523; box-shadow: 0 14px 35px rgb(45 34 28 / 25%);
 }
 .public-cart-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .public-cart-heading .eyebrow { color: #ffc1a1; }
 .public-cart-heading h2 { margin-top: 3px; }
 .public-cart-count { color: #e5d6ce; font-size: .8rem; white-space: nowrap; }
-.public-cart-line { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding-block: 12px; border-block: 1px solid #51453f; }
+.public-cart-line { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
 .public-cart-line > div { display: grid; gap: 3px; }
 .public-cart-line > div span { color: #d8c8bf; font-size: .88rem; }
 .public-cart-price { color: #ffc1a1; font-size: 1.15rem; white-space: nowrap; }
 .public-cart-card .muted { color: #d8c8bf; }
-.public-cart-card .btn { background: var(--brand); color: var(--on-brand); }
+.public-cart-card .btn { min-height: 44px; background: var(--brand); color: var(--on-brand); }
 .public-whatsapp { text-align: center; }
 .confirmation-welcome {
   display: grid; justify-items: center; gap: 8px; padding: 26px 20px;
@@ -530,8 +579,28 @@ button, input, textarea, select { accent-color: var(--accent); }
   .booking-card-link { padding: 14px; }
   .booking-card-heading { flex-wrap: wrap; }
   .calendar-add-button { right: 20px; bottom: max(22px, env(safe-area-inset-bottom)); }
+  .calendar-date-picker { min-width: 0; padding: 12px; overflow: hidden; border-radius: 18px; }
+  .calendar-days { margin-inline: -12px; padding-inline: 12px; gap: 6px; }
+  .calendar-day { min-width: 48px; min-height: 58px; padding-inline: 4px; font-size: .78rem; }
+  .calendar-day .day { font-size: 1.05rem; }
+  .manual-booking-dialog {
+    width: calc(100vw - 16px); max-width: none;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    padding: 16px; border-radius: 18px; overscroll-behavior: contain;
+  }
+  .control-editor-dialog {
+    width: calc(100vw - 16px); max-width: none;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    border-radius: 18px;
+  }
   .manual-booking-actions { grid-template-columns: 1fr; }
+  .booking-days { gap: 6px; padding-inline: 16px; margin-inline: -16px; }
+  .booking-days .chip { min-width: 50px; min-height: 60px; padding: 6px 4px; font-size: .78rem; }
+  .booking-days .chip .day { font-size: 1.1rem; }
   .public-service-heading { flex-direction: column; }
   .service-starting-price { text-align: left; }
-  .public-cart-card { bottom: 8px; padding: 16px; }
+  .public-cart-card { bottom: 8px; padding: 10px 12px; }
+  .public-cart-line > div span { font-size: .78rem; }
+  .public-cart-price { font-size: 1rem; }
+  .public-category-heading { flex-direction: column; }
 }

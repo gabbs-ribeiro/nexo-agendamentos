@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Notice from '../../components/Notice.jsx'
-import { listAdminBookings } from '../../lib/api.js'
-import { ERROR_MESSAGES } from '../../lib/errors.js'
-import { addDaysYmd, dayChipParts, formatLongDate, todayInTz } from '../../lib/format.js'
+import { listAdminBookings, setAdminBookingStatus } from '../../lib/api.js'
+import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
+import { addDaysYmd, dayChipParts, formatInstant, formatLongDate, todayInTz } from '../../lib/format.js'
 import { dateRangeInTimezone } from './bookingView.js'
 import { useAdminBusiness } from './AdminBusinessContext.jsx'
 import BookingList from './BookingList.jsx'
@@ -31,6 +32,16 @@ export default function AgendaPage({ view }) {
   const [reload, setReload] = useState(0)
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
   const [createdFeedback, setCreatedFeedback] = useState(null)
+  const [completionTarget, setCompletionTarget] = useState(null)
+  const [completionError, setCompletionError] = useState('')
+  const [completionBusy, setCompletionBusy] = useState(false)
+  const [completionNotice, setCompletionNotice] = useState('')
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     setSelectedDate(todayInTz(business.timezone))
@@ -60,6 +71,23 @@ export default function AgendaPage({ view }) {
     setBookingDialogOpen(false)
     setCreatedFeedback({ uncertain: true })
     setReload((current) => current + 1)
+  }
+
+  async function completeBooking() {
+    if (!completionTarget || completionBusy) return
+    setCompletionBusy(true)
+    setCompletionError('')
+    setCompletionNotice('')
+    try {
+      await setAdminBookingStatus(completionTarget.id, 'completed')
+      setCompletionTarget(null)
+      setCompletionNotice('Agendamento concluído.')
+      setReload((current) => current + 1)
+    } catch (error) {
+      setCompletionError(messageFor(error))
+    } finally {
+      setCompletionBusy(false)
+    }
   }
 
   const selectedWeek = Array.from({ length: 7 }, (_, index) => addDaysYmd(date, index - 3))
@@ -133,12 +161,19 @@ export default function AgendaPage({ view }) {
               : <>Agendamento criado, mas não foi possível confirmar o salvamento da anotação interna. <Link to={`/admin/agendamentos/${createdFeedback.bookingId}`}>Abra os detalhes para conferir e salvar a anotação.</Link></>}
         </Notice>
       )}
+      {completionNotice && <Notice>{completionNotice}</Notice>}
       {state.status === 'loading' && <p className="status" role="status">Carregando agendamentos…</p>}
       {state.status === 'error' && <Notice tone="error">{ERROR_MESSAGES.NETWORK}</Notice>}
       {state.status === 'ready' && (
         <BookingList
           bookings={state.bookings}
           timezone={business.timezone}
+          now={now}
+          completingBookingId={completionBusy ? completionTarget?.id : null}
+          onComplete={(booking) => {
+            setCompletionTarget(booking)
+            setCompletionError('')
+          }}
           emptyText={isHome ? 'Sem agendamentos por hoje.' : 'Sem agendamentos nesta data.'}
         />
       )}
@@ -155,6 +190,20 @@ export default function AgendaPage({ view }) {
           onUncertain={handleBookingUncertain}
         />
       )}
+
+      <ConfirmDialog
+        open={Boolean(completionTarget)}
+        title="Concluir este agendamento?"
+        description={completionTarget
+          ? `${completionTarget.pet_name} · ${formatInstant(completionTarget.starts_at, business.timezone).date}, das ${formatInstant(completionTarget.starts_at, business.timezone).time} às ${formatInstant(completionTarget.ends_at, business.timezone).time}. O compromisso permanecerá na agenda identificado como concluído.`
+          : ''}
+        cancelLabel="Não, voltar"
+        confirmLabel="Sim, concluir"
+        busy={completionBusy}
+        error={completionError}
+        onCancel={() => { setCompletionTarget(null); setCompletionError('') }}
+        onConfirm={completeBooking}
+      />
     </section>
   )
 }
