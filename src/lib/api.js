@@ -52,6 +52,6 @@ export async function createPublicBooking({ slug, optionId, startsAt, form, idem
 }
 
 export function logoUrl(path) {
-  if (!path) return null
+  if (!path || !supabase) return null
   return supabase.storage.from('business-logos').getPublicUrl(path).data.publicUrl
 }

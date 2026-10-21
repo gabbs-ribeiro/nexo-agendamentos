@@ -1,7 +1,7 @@
 # Nexo Agendamentos — Transferência para o GitHub Copilot
 
 > Estado: **banco escrito, NÃO executado, NÃO validado.** Nenhum SQL deste repositório foi rodado em um Postgres/Supabase até aqui. O primeiro trabalho é executar as migrations no projeto de **DEV** e passar todos os testes de `supabase/tests/` (ver `docs/TESTES.md`).
-> **Front (itens 1 e 5): fluxo público de reserva escrito**, com testes puros e renderização verificados em Node, mas **`npm install`, `vite build` e o navegador real ainda não foram exercitados** (ver §10).
+> **Front (itens 1, 2 e 5):** fluxo público de reserva e primeira versão de login/guarda por `business_members` escritos. Build e navegador contra o DEV ainda precisam ser exercitados (ver §10).
 
 ## 1. O que é
 Sistema de agendamento multi-negócio (Nexo Labs). Primeiro cliente: banho e tosa de pets de uma pessoa (uso acadêmico, sem fins lucrativos). Reutilizável por outros negócios no futuro.
@@ -71,10 +71,10 @@ Rotas públicas: `/:slug` · `/:slug/agendar` · `/:slug/confirmado`. Admin: `/l
 Usar projetos separados para DEV e produção (as duas vagas gratuitas).
 
 ## 8. Pendências (ordem recomendada)
-> Itens **1 e 5 já têm primeira versão** (ver §10): falta rodar no navegador contra o DEV.
+> Itens **1, 2 e 5 já têm primeira versão** (ver §10): build e teste no navegador contra o DEV ainda pendentes.
 0. **Executar as migrations no DEV e passar os testes 01–07** (ver `docs/TESTES.md`); corrigir o que falhar *antes* de qualquer front. Desligar signup no Auth; conferir que `app_private` não está em “Exposed schemas”; confirmar bucket de logos.
 1. Scaffold Vite + React + React Router + `@supabase/supabase-js`; `vercel.json` com rewrite.
-2. Login/logout e guarda de rotas admin (descobrir o negócio via `business_members`).
+2. Login/logout e guarda de rotas admin (descobrir o negócio via `business_members`) — primeira versão implementada; validar no navegador contra o DEV. O painel continua pendente.
 3. Configurações do negócio (nome, cor, gap, grade, antecedências, `allow_end_after_close`).
 4. Serviços com portes (preço em centavos ↔ reais; arquivar em vez de apagar), horários de funcionamento (várias faixas/dia), bloqueios.
 5. Fluxo público de reserva (serviço → porte → data → horário → dados + consentimento → confirmação), com tratamento dos códigos de erro e `p_idempotency_key`.
@@ -92,18 +92,19 @@ Usar projetos separados para DEV e produção (as duas vagas gratuitas).
 - `006_storage_logos.sql` depende do schema `storage` do Supabase e só pode ser validado lá.
 - Vercel Hobby é para uso não comercial: confirmar se o uso pelo negócio da prima se enquadra; se não, migrar de hospedagem ou plano.
 
-## 10. Front: estado atual (itens 1 e 5 da ordem recomendada)
-**Arquivos:** `package.json`, `vite.config.js`, `vercel.json`, `index.html`; `src/lib/{supabase,api,errors,format}.js`; `src/styles/global.css`; `src/components/Notice.jsx`; `src/features/public-booking/` (`PublicLayout`, `ServicesPage`, `BookingPage` + `StepService/StepDateTime/StepDetails/SummaryBar`, `ConfirmedPage`, `PrivacyPage`, `bookingReducer.js`, `validation.js`).
+## 10. Front: estado atual (itens 1, 2 e 5 da ordem recomendada)
+**Arquivos:** `package.json`, `vite.config.js`, `vercel.json`, `index.html`; `src/lib/{supabase,api,errors,format}.js`; `src/styles/global.css`; `src/components/Notice.jsx`; `src/features/auth/` (login e guarda de acesso por sessão/vínculo); `src/features/public-booking/` (`PublicLayout`, `ServicesPage`, `BookingPage` + `StepService/StepDateTime/StepDetails/SummaryBar`, `ConfirmedPage`, `PrivacyPage`, `bookingReducer.js`, `validation.js`).
 
 **Decisões de implementação (manter):**
-- `lib/supabase.js` **recusa** `service_role` e `sb_secret_…` no front (lança erro na carga).
+- `lib/supabase.js` **recusa** `service_role` e `sb_secret_…` no front (lança erro na carga); quando as variáveis públicas não existem, o app informa que falta configuração.
 - Toda chamada passa por `lib/api.js`: erro de rede vira `ApiError('NETWORK')`; erro de negócio `{ok:false,error}` vira `ApiError(código)`; a tela mostra só mensagens de `lib/errors.js`.
 - Datas no **fuso do negócio** (`lib/format.js`); o horário enviado é o `starts_at` exato devolvido pelo banco; exibe-se `local_time`.
 - `p_idempotency_key` nasce ao escolher o horário (`bookingReducer`), é reutilizada em retries de rede e renovada se o horário mudar. `SLOT_UNAVAILABLE` volta ao passo de horário preservando servico, data e dados digitados.
 - A confirmação guarda em `sessionStorage` **só a resposta do servidor** (sem nome/telefone).
 - A cor do negócio só preenche botões/seleções; a cor do texto sobre ela é calculada (contraste). Fonte do sistema (`ui-rounded`), sem requisição externa.
+- `/login` usa Supabase Auth com e-mail/senha; `/admin/*` verifica sessão no servidor e vínculo `owner` em `business_members` sob RLS. Não há cadastro público nem painel administrativo implementado.
 
-**Verificado (em Node, sem navegador):** `npm test` → 19 testes (formatação, fuso, telefone, contraste, idempotência, reducer, validação), também sob `TZ=UTC`, `Asia/Tokyo` e `America/Los_Angeles`; sintaxe de todos os `.jsx`; renderização no servidor das telas com dados de exemplo (textos, links, HTML escapado, botões desabilitados).
-**NÃO verificado:** `npm install`/`vite build`; navegador real e layout visual no celular; integração com o Supabase de DEV; acessibilidade manual (teclado/leitor de tela); comportamento do botão Voltar do navegador (hoje sai do fluxo, não volta ao passo anterior).
+**Verificado nesta entrega:** `npm test` → 22 pass, 0 fail; `npm run build` concluiu; navegador local abriu `/login` sem consultar o slug `login` e mostrou aviso de configuração ausente; rota pública manteve a mensagem mapeada de indisponibilidade. As variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` não estão configuradas neste ambiente.
+**NÃO verificado:** integração com o Supabase de DEV (incluindo credenciais inválidas, sem vínculo e vínculo `owner`); acessibilidade manual (teclado/leitor de tela); comportamento do botão Voltar do navegador (hoje sai do fluxo, não volta ao passo anterior); layout visual no celular.
 
-**Próximo:** rodar `npm install && npm run dev` com `.env.local` do DEV, criar o negócio de teste (`provision_business.sql`, cadastrar portes) e percorrer o checklist de `docs/TESTES.md` (seção Front). Depois, item 2 (login e guarda de rotas) e item 3 (configurações do negócio, incluindo o telefone de contato).
+**Próximo:** primeiro executar as migrations e testes SQL 01–07 em um projeto de DEV, conforme §8 item 0 e `docs/TESTES.md`. Depois configurar `.env.local` com URL e chave anon do DEV, rodar o checklist de navegador do fluxo público/login e seguir para item 3 (configurações do negócio, incluindo o telefone de contato). O painel administrativo ainda precisa ser implementado.

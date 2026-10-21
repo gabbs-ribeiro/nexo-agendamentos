@@ -26,7 +26,8 @@ export function assertPublicKey(k) {
   }
 }
 
-if (!url) throw new Error('Configure VITE_SUPABASE_URL (veja .env.example).')
-assertPublicKey(key)
+export const isSupabaseConfigured = Boolean(url && key)
 
-export const supabase = createClient(url, key)
+if (isSupabaseConfigured) assertPublicKey(key)
+
+export const supabase = isSupabaseConfigured ? createClient(url, key) : null
