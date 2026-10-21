@@ -82,7 +82,7 @@ Usar projetos separados para DEV e produção (as duas vagas gratuitas).
 3. Configurações do negócio (nome, cor e foto do perfil foram iniciados na aba Controle; gap, grade, antecedências e `allow_end_after_close` continuam pendentes).
 4. Serviços, catálogo de portes com preço/duração por opção e arquivamento foram iniciados na aba Controle; horários de funcionamento (várias faixas/dia) e bloqueios continuam pendentes.
 5. Fluxo público de reserva (serviço → porte → data → horário → dados + consentimento → confirmação), com tratamento dos códigos de erro e `p_idempotency_key`.
-6. Agenda administrativa — início, visão diária do calendário, detalhes, edição de dados de tutor/pet, anotações internas e cancelamento já têm primeira versão. Criar manualmente, remarcar, concluir/faltou e demais telas do painel ainda pendentes.
+6. Agenda administrativa — início, calendário diário, criação manual, detalhes, edição de dados de tutor/pet, anotações internas e cancelamento já têm primeira versão. Remarcar, concluir/faltou e demais telas do painel ainda pendentes.
 7. Logo (upload em `business-logos/<business_id>/logo.<ext>`, atualizar `businesses.logo_path`).
 8. Endurecimento: aviso de privacidade/LGPD, CAPTCHA (D6) antes de abrir ao público, revisão de mensagens de erro, rotina de backup.
 9. Piloto com o negócio real.
@@ -109,11 +109,12 @@ Usar projetos separados para DEV e produção (as duas vagas gratuitas).
 - A confirmação guarda em `sessionStorage` **só a resposta do servidor** (sem nome/telefone).
 - A identidade visual usa tons quentes, fundo creme, cartões arredondados e fontes do sistema (sem requisição externa). O contraste de texto sobre a cor pública do negócio é calculado.
 - `/login` usa Supabase Auth com e-mail/senha; `/admin/*` verifica sessão e vínculo `owner` em `business_members` sob RLS. Não há cadastro público.
-- Início e Calendário listam somente compromissos confirmados; os dois levam à mesma tela detalhada, que lê snapshots diretamente de `bookings`, edita apenas dados de tutor/pet e salva notas internas pela RPC.
+- Início recebe com resumo dos atendimentos do dia, destaca anotações internas e oferece cópia/compartilhamento do link público. O Calendário permite escolher data, consultar os horários disponíveis e criar agendamentos manuais via `admin_create_booking`; as anotações internas são salvas pela RPC `admin_update_booking_internal_notes`. Ambos mostram somente compromissos confirmados e levam à tela detalhada baseada nos snapshots de `bookings`.
 - Cancelamento chama `admin_set_booking_status` somente após confirmação num modal acessível; logout também exige confirmação. Erros mantêm a ação sem sucesso simulado.
 - A aba Controle edita perfil público (nome/foto/cor), administra catálogo de portes compartilhado e gerencia serviços (nome/descrição/porte/preço/duração). Serviços são arquivados e novas opções usam a duração do banco para cálculo da agenda.
+- O cabeçalho administrativo e público usa a logo e o nome editáveis do estabelecimento; “Nexo Agendamentos” fica em texto pequeno no rodapé.
 
-**Verificado nesta entrega:** inspeção da definição instalada de `get_public_business` relatada pelo responsável identificou a ausência de `contact_phone`; criada migration aditiva e restrita à atualização dessa função. Não foi executado SQL nesta sessão.
-**NÃO verificado:** aplicação da migration corretiva; execução bem-sucedida dos testes 01–04 e 08–09; saída vazia da primeira consulta 04; integração de Controle e upload no Supabase de DEV; acessibilidade manual (teclado/leitor de tela); layout visual em aparelhos reais.
+**Verificado nesta entrega:** `npm test` → 30 pass, 0 fail; `npm run build` concluiu usando URL/chave anon placeholder (sem ler nem usar `.env`); `git diff --check` passou. A agenda manual usa `admin_create_booking` e, se preenchida, `admin_update_booking_internal_notes`; nenhum SQL foi executado.
+**NÃO verificado:** aplicação da migration corretiva; execução bem-sucedida dos testes SQL 01–04 e 08–09; saída vazia da primeira consulta 04; integração de Controle e da criação manual contra Supabase DEV; acessibilidade manual (teclado/leitor de tela); aparência em aparelhos reais.
 
 **Próximo:** aplicar `20261021000003_restore_public_business_contact.sql` somente no DEV; confirmar a função com `pg_get_functiondef`, repetir 01–04 e 08–09, validar a aba Controle e upload no DEV. Nunca aplicar correções em produção antes desses testes.

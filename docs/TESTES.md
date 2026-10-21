@@ -39,7 +39,7 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 28 testes, incluindo apresentação histórica, validação de preços/portes e fusos. Última execução: `# pass 28`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 30 testes, incluindo apresentação histórica, validação de preços/portes, fusos e montagem segura do link público. Última execução: `# pass 30`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -54,6 +54,10 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Detalhes mostram serviço, porte, duração, preço e horários registrados; edição das informações do tutor/pet não altera snapshots.
 - [ ] Anotações internas são salvas separadas das observações do tutor e só aparecem para membros do negócio.
 - [ ] A aba Controle altera nome/foto/cor públicos; o perfil atualizado aparece na rota `/<slug>`.
+- [ ] Cabeçalho do painel e da página pública mostram a logo e o nome atualizados do estabelecimento; “Nexo Agendamentos” só aparece em tamanho pequeno no rodapé.
+- [ ] Início mostra os compromissos de hoje, texto de agenda vazia e anotações internas em destaque; o link público pode ser copiado e compartilhado.
+- [ ] Calendário permite escolher dia, consulta horários pelo banco e cria agendamento manual com serviço, porte, data/horário, dados do tutor/pet e observações via RPC; anotação interna é salva pela RPC separada.
+- [ ] Em caso de falha de rede ao criar agendamento manual, a interface avisa para conferir a agenda antes de repetir; falha ao salvar nota não simula sucesso e aponta os detalhes do agendamento.
 - [ ] Serviços exibem a descrição no fluxo público; porte, preço e duração configurados alimentam as novas reservas.
 - [ ] Renomear ou desativar um porte não altera rótulos e snapshots de agendamentos existentes; porte desativado deixa de oferecer novos horários.
 

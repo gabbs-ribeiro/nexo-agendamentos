@@ -72,6 +72,7 @@ export default function PublicLayout() {
       </main>
       <footer className="site-footer small muted">
         <Link to={`/${slug}/privacidade`}>Aviso de privacidade</Link>
+        <span className="site-footer-brand">Nexo Agendamentos</span>
       </footer>
     </div>
   )

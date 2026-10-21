@@ -1,20 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import { ERROR_MESSAGES } from '../../lib/errors.js'
 import { supabase } from '../../lib/supabase.js'
+import { logoUrl } from '../../lib/api.js'
 import AgendaPage from './AgendaPage.jsx'
 import { AdminBusinessProvider } from './AdminBusinessContext.jsx'
 import BookingDetailsPage from './BookingDetailsPage.jsx'
 import ControlPage from './ControlPage.jsx'
 
+function BusinessLogo({ business }) {
+  const [failed, setFailed] = useState(false)
+  const src = logoUrl(business.logo_path)
+  useEffect(() => { setFailed(false) }, [src])
+  if (!src || failed) {
+    return <span className="admin-logo-fallback" aria-hidden="true">{business.name.trim().charAt(0).toUpperCase()}</span>
+  }
+  return <img className="admin-logo" src={src} alt="" onError={() => setFailed(true)} />
+}
+
 export default function AdminWorkspace({ businesses }) {
   const navigate = useNavigate()
+  const [availableBusinesses, setAvailableBusinesses] = useState(businesses)
   const [businessId, setBusinessId] = useState(businesses[0].id)
   const [confirmLogout, setConfirmLogout] = useState(false)
   const [logoutBusy, setLogoutBusy] = useState(false)
   const [logoutError, setLogoutError] = useState('')
-  const business = businesses.find((item) => item.id === businessId) ?? businesses[0]
+  const business = availableBusinesses.find((item) => item.id === businessId) ?? availableBusinesses[0]
+
+  function updateBusiness(updatedBusiness) {
+    setAvailableBusinesses((current) => current.map((item) => (
+      item.id === updatedBusiness.id ? { ...item, ...updatedBusiness } : item
+    )))
+  }
 
   async function logout() {
     if (logoutBusy) return
@@ -36,15 +54,18 @@ export default function AdminWorkspace({ businesses }) {
   }
 
   return (
-    <AdminBusinessProvider business={business}>
+    <AdminBusinessProvider business={business} onBusinessChange={updateBusiness}>
       <div className="admin-shell">
         <header className="admin-header">
-          <Link to="/admin" className="admin-brand">Nexo Agendamentos</Link>
-          {businesses.length > 1 && (
+          <Link to="/admin" className="admin-brand" aria-label={`Início de ${business.name}`}>
+            <BusinessLogo business={business} />
+            <span>{business.name}</span>
+          </Link>
+          {availableBusinesses.length > 1 && (
             <div className="field admin-business-picker">
               <label htmlFor="admin-business">Estabelecimento</label>
               <select id="admin-business" value={business.id} onChange={(event) => setBusinessId(event.target.value)}>
-                {businesses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                {availableBusinesses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
             </div>
           )}
@@ -66,6 +87,7 @@ export default function AdminWorkspace({ businesses }) {
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
         </main>
+        <footer className="admin-footer">Nexo Agendamentos</footer>
         <ConfirmDialog
           open={confirmLogout}
           title="Deseja sair da sua conta?"

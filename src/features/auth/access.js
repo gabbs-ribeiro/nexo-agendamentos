@@ -14,7 +14,7 @@ export async function getAdminBusinesses(userId) {
   const businessIds = ownerMemberships.map((membership) => membership.business_id)
   const { data: businesses, error: businessError } = await supabase
     .from('businesses')
-    .select('id, name, timezone')
+    .select('id, name, slug, logo_path, primary_color, timezone')
     .in('id', businessIds)
 
   if (businessError || !Array.isArray(businesses)) throw new ApiError('AUTH_CHECK_FAILED')
