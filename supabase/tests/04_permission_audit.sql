@@ -17,7 +17,8 @@ allowed_auth(fn) as (values
   ('list_public_service_categories'), ('get_available_slots'), ('create_public_booking'),
   ('admin_create_booking'), ('admin_set_booking_status'),
   ('admin_reschedule_booking'), ('admin_update_booking_details'),
-  ('admin_create_time_block'), ('admin_update_booking_internal_notes')),
+  ('admin_create_time_block'), ('admin_update_booking_internal_notes'),
+  ('admin_replace_business_hours')),
 -- privilegios que authenticated NAO pode ter (decisoes de arquitetura)
 forbidden_auth(tbl, priv) as (values
   ('bookings','insert'), ('bookings','update'), ('bookings','delete'), ('bookings','truncate'),

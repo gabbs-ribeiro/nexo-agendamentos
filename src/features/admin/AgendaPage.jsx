@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Notice from '../../components/Notice.jsx'
-import { listAdminBookings, setAdminBookingStatus } from '../../lib/api.js'
+import {
+  createAdminTimeBlock,
+  deleteAdminTimeBlock,
+  listAdminBookingConflicts,
+  listAdminBookings,
+  listAdminTimeBlocks,
+  setAdminBookingStatus,
+} from '../../lib/api.js'
 import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
 import { addDaysYmd, dayChipParts, formatInstant, formatLongDate, todayInTz } from '../../lib/format.js'
 import { dateRangeInTimezone } from './bookingView.js'
@@ -36,6 +43,11 @@ export default function AgendaPage({ view }) {
   const [completionError, setCompletionError] = useState('')
   const [completionBusy, setCompletionBusy] = useState(false)
   const [completionNotice, setCompletionNotice] = useState('')
+  const [holidayTarget, setHolidayTarget] = useState(null)
+  const [holidayError, setHolidayError] = useState('')
+  const [holidayWarning, setHolidayWarning] = useState('')
+  const [holidayBusy, setHolidayBusy] = useState(false)
+  const [holidayNotice, setHolidayNotice] = useState('')
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -48,18 +60,29 @@ export default function AgendaPage({ view }) {
   }, [business.id, business.timezone])
 
   useEffect(() => {
+    setHolidayWarning('')
+    setHolidayError('')
+    setHolidayNotice('')
+    setHolidayTarget(null)
+  }, [selectedDate])
+
+  useEffect(() => {
     let active = true
     setState({ status: 'loading' })
     const range = dateRangeInTimezone(date, business.timezone)
-    listAdminBookings(business.id, range.start, range.end)
-      .then((bookings) => {
-        if (active) setState({ status: 'ready', bookings })
+    Promise.all([
+      listAdminBookings(business.id, range.start, range.end),
+      isHome ? Promise.resolve([]) : listAdminTimeBlocks(business.id, range.start, range.end),
+      isHome ? Promise.resolve([]) : listAdminBookingConflicts(business.id, range.start, range.end),
+    ])
+      .then(([bookings, blocks, conflicts]) => {
+        if (active) setState({ status: 'ready', bookings, blocks, conflicts })
       })
       .catch(() => {
         if (active) setState({ status: 'error' })
       })
     return () => { active = false }
-  }, [business.id, business.timezone, date, reload])
+  }, [business.id, business.timezone, date, isHome, reload])
 
   function handleBookingCreated(result) {
     setBookingDialogOpen(false)
@@ -87,6 +110,61 @@ export default function AgendaPage({ view }) {
       setCompletionError(messageFor(error))
     } finally {
       setCompletionBusy(false)
+    }
+  }
+
+  const holidayBlock = state.status === 'ready'
+    ? state.blocks.find((block) => block.reason === 'Folga')
+    : null
+
+  function requestHolidayChange() {
+    if (state.status !== 'ready' || holidayBusy) return
+    setHolidayWarning('')
+    setHolidayNotice('')
+    setHolidayError('')
+    if (holidayBlock) {
+      setHolidayTarget({ kind: 'remove', block: holidayBlock })
+      return
+    }
+    if (selectedDate < todayInTz(business.timezone)) {
+      setHolidayWarning('Não é possível marcar folga em uma data que já passou.')
+      return
+    }
+    if (state.blocks.length) {
+      setHolidayWarning('Já existe um bloqueio neste dia. Não é possível marcar outra folga enquanto ele estiver ativo.')
+      return
+    }
+    if (state.conflicts.length) {
+      const hasConfirmed = state.conflicts.some((booking) => booking.status === 'confirmed')
+      setHolidayWarning(hasConfirmed
+        ? 'Não é possível marcar folga enquanto houver agendamentos neste dia. Cancele os atendimentos confirmados e tente novamente.'
+        : 'Não é possível marcar folga: há um agendamento concluído ou registrado neste dia.')
+      return
+    }
+    setHolidayTarget({ kind: 'create' })
+  }
+
+  async function confirmHolidayChange() {
+    if (!holidayTarget || holidayBusy) return
+    setHolidayBusy(true)
+    setHolidayError('')
+    try {
+      const range = dateRangeInTimezone(selectedDate, business.timezone)
+      if (holidayTarget.kind === 'create') {
+        await createAdminTimeBlock(business.id, range.start, range.end, 'Folga')
+        setHolidayNotice('Folga marcada. O dia está bloqueado para novas reservas.')
+      } else {
+        await deleteAdminTimeBlock(business.id, holidayTarget.block.id)
+        setHolidayNotice('Folga removida. A disponibilidade do dia voltou a ser calculada pelo sistema.')
+      }
+      setHolidayTarget(null)
+      setReload((current) => current + 1)
+    } catch (error) {
+      setHolidayError(error?.code === 'BOOKING_CONFLICT'
+        ? 'Não é possível marcar folga: existe um agendamento neste dia. Cancele os atendimentos confirmados e tente novamente.'
+        : messageFor(error))
+    } finally {
+      setHolidayBusy(false)
     }
   }
 
@@ -152,6 +230,24 @@ export default function AgendaPage({ view }) {
         </section>
       )}
 
+      {!isHome && (
+        <section className="calendar-day-controls" aria-label="Disponibilidade da data selecionada">
+          <div>
+            <p className="eyebrow">Disponibilidade do dia</p>
+            <p className="muted">{holidayBlock
+              ? 'Esta data está marcada como folga e bloqueada para novas reservas.'
+              : 'Marque uma folga para bloquear o dia inteiro no fuso do estabelecimento.'}</p>
+          </div>
+          <button type="button" className={holidayBlock ? 'btn btn-quiet' : 'btn btn-primary'}
+            disabled={state.status !== 'ready' || holidayBusy}
+            onClick={requestHolidayChange}>
+            {holidayBlock ? 'Remover folga' : 'Marcar folga'}
+          </button>
+          {holidayWarning && <Notice tone="error">{holidayWarning}</Notice>}
+          {holidayNotice && <Notice>{holidayNotice}</Notice>}
+        </section>
+      )}
+
       {createdFeedback && (
         <Notice tone={createdFeedback.uncertain || !createdFeedback.internalNoteSaved ? 'error' : 'info'}>
           {createdFeedback.uncertain
@@ -203,6 +299,20 @@ export default function AgendaPage({ view }) {
         error={completionError}
         onCancel={() => { setCompletionTarget(null); setCompletionError('') }}
         onConfirm={completeBooking}
+      />
+
+      <ConfirmDialog
+        open={Boolean(holidayTarget)}
+        title={holidayTarget?.kind === 'remove' ? 'Remover folga deste dia?' : 'Marcar este dia como folga?'}
+        description={holidayTarget?.kind === 'remove'
+          ? `${formatLongDate(selectedDate)} voltará a aceitar reservas conforme os horários de funcionamento e a disponibilidade calculada pelo banco.`
+          : `${formatLongDate(selectedDate)} ficará bloqueado para novas reservas durante todo o dia no fuso do estabelecimento. O banco verificará novamente se há agendamentos antes de criar o bloqueio.`}
+        cancelLabel="Voltar"
+        confirmLabel={holidayTarget?.kind === 'remove' ? 'Sim, remover folga' : 'Sim, marcar folga'}
+        busy={holidayBusy}
+        error={holidayError}
+        onCancel={() => { setHolidayTarget(null); setHolidayError('') }}
+        onConfirm={confirmHolidayChange}
       />
     </section>
   )

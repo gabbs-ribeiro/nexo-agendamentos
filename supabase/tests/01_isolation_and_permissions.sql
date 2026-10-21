@@ -284,6 +284,11 @@ begin
     raise exception 'FAIL: C criou bloqueio';
   exception when insufficient_privilege then null;
   end;
+  begin
+    perform public.admin_replace_business_hours('a0000000-0000-0000-0000-0000000000a1', '[]'::jsonb);
+    raise exception 'FAIL: C alterou expediente sem vinculo';
+  exception when insufficient_privilege then null;
+  end;
   raise notice 'PASS: usuario autenticado sem vinculo ve ZERO linhas e nao administra nada';
 end $$;
 reset role;
@@ -321,6 +326,10 @@ begin
     perform public.admin_create_time_block(
       'a0000000-0000-0000-0000-0000000000a1', now() + interval '3 days', now() + interval '4 days');
     raise exception 'FAIL: anon executou funcao admin';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.admin_replace_business_hours('a0000000-0000-0000-0000-0000000000a1', '[]'::jsonb);
+    raise exception 'FAIL: anon executou alteracao de expediente';
   exception when insufficient_privilege then null; end;
   begin perform public.admin_set_booking_status('b0000000-0000-0000-0000-0000000000b5', 'cancelled');
         raise exception 'FAIL: anon cancelou agendamento';

@@ -17,6 +17,7 @@ import {
 import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
 import { digitsOnly, formatBRL, isValidPhone, maskPhone } from '../../lib/format.js'
 import { useAdminBusiness, useUpdateAdminBusiness } from './AdminBusinessContext.jsx'
+import BusinessHoursSection from './BusinessHoursSection.jsx'
 import { groupServicesByCategory } from './catalogCategories.js'
 import { priceToCents, sizeCodeForName } from './serviceCatalog.js'
 
@@ -427,6 +428,8 @@ export default function ControlPage() {
           </button>
         </form>
       </section>
+
+      <BusinessHoursSection businessId={business.id} />
 
       <section className="control-card stack" aria-labelledby="sizes-title">
         <div className="control-section-heading">
