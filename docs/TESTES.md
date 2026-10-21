@@ -74,6 +74,8 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Fluxo completo: serviço/porte → dia → horário → dados → confirmar → comprovante com o horário correto.
 - [ ] Cada cartão apresenta o serviço e “A partir de” com o menor preço; selecionar um porte atualiza preço/duração no resumo e inicia uma reserva para um serviço/animal. Para outro serviço ou animal, é necessário reservar outro horário.
 - [ ] A página agrupa serviços por categoria e mostra título/descrição editáveis; categorias sem serviços exibem estado vazio sem oferecer reserva.
+- [ ] Página inicial começa sem serviço selecionado nem carrinho; categorias aparecem recolhidas e expandem/fecham com botão acessível. Carrinho só surge após selecionar uma opção de serviço/porte.
+- [ ] Texto “Atendimento com carinho” não aparece; no passo de data há separação visível entre título e cards de dia; consentimento de privacidade fica ao lado da caixa de seleção em telas mobile.
 - [ ] O comprovante agradece ao cliente, confirma que o serviço foi agendado e oferece contato pelo WhatsApp configurado em Controle.
 - [ ] No celular (ou 375 px): botões grandes, nada cortado, barra "Continuar/Confirmar" visível, teclado numérico no telefone.
 - [ ] Fuso: com o relógio/fuso do computador diferente de São Paulo, os horários exibidos continuam os do negócio.

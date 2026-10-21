@@ -28,5 +28,6 @@ test('opção escolhida determina serviço, porte, valor e duração', () => {
     service: services[0],
     option: services[0].options[1],
   })
+  assert.equal(findSelectedService(services, ''), null)
   assert.equal(findSelectedService(services, 'missing'), null)
 })
