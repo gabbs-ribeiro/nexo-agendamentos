@@ -41,7 +41,12 @@ export default function ServiceCard({ service, selectedOptionId, onSelectOption 
       </fieldset>
       {selected && (
         <p className="public-service-current-price" aria-live="polite">
-          Selecionado: porte {selected.size_label} · <strong>{formatBRL(selected.price_cents)}</strong> · {formatDuration(selected.duration_minutes)}
+          <span className="current-main">
+            <span className="current-check" aria-hidden="true">✓</span>
+            <span className="sr-only">Selecionado: </span>
+            Porte {selected.size_label} · {formatDuration(selected.duration_minutes)}
+          </span>
+          <strong>{formatBRL(selected.price_cents)}</strong>
         </p>
       )}
     </article>
