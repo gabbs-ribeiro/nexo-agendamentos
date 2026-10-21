@@ -9,10 +9,13 @@ import AdminAccessPage from './features/auth/AdminAccessPage.jsx'
 
 function Simple({ title, children }) {
   return (
-    <main className="page stack">
-      <h1>{title}</h1>
-      <p className="muted">{children}</p>
-    </main>
+    <div className="shell">
+      <main className="page stack">
+        <h1>{title}</h1>
+        <p className="muted">{children}</p>
+      </main>
+      <footer className="site-footer small muted">Nexo Agendamentos</footer>
+    </div>
   )
 }
 

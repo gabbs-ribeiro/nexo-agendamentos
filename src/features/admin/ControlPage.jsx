@@ -15,7 +15,7 @@ import {
 } from '../../lib/api.js'
 import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
 import { formatBRL } from '../../lib/format.js'
-import { useAdminBusiness } from './AdminBusinessContext.jsx'
+import { useAdminBusiness, useUpdateAdminBusiness } from './AdminBusinessContext.jsx'
 import { priceToCents, sizeCodeForName } from './serviceCatalog.js'
 
 function ErrorNotice({ children }) {
@@ -48,6 +48,7 @@ function newDraft(sizes) {
 
 export default function ControlPage() {
   const business = useAdminBusiness()
+  const updateAdminBusiness = useUpdateAdminBusiness()
   const [state, setState] = useState({ status: 'loading' })
   const [profile, setProfile] = useState(null)
   const [profileDraft, setProfileDraft] = useState({ name: '', primary_color: '#ef946f' })
@@ -158,6 +159,12 @@ export default function ControlPage() {
         throw error
       }
       setProfile({ ...profile, ...profileDraft, name, logo_path: newPath })
+      updateAdminBusiness({
+        id: business.id,
+        name,
+        logo_path: newPath,
+        primary_color: profileDraft.primary_color,
+      })
       setLogoFile(null)
       if (uploadedPath && profile.logo_path) {
         try {

@@ -48,53 +48,56 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="page stack">
-      <section className="auth-card stack">
-        <div className="stack-sm">
-          <h1>Acesso do estabelecimento</h1>
-          <p className="muted">Entre com o e-mail e a senha fornecidos pelo responsável.</p>
-        </div>
-
-        {!isSupabaseConfigured && (
-          <Notice tone="error">
-            A autenticação não está configurada. Defina a URL e a chave pública anon do projeto de desenvolvimento.
-          </Notice>
-        )}
-
-        <form className="stack" onSubmit={handleSubmit}>
-          <div className="field">
-            <label htmlFor="login-email">E-mail</label>
-            <input
-              id="login-email"
-              type="email"
-              autoComplete="username"
-              required
-              maxLength={254}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
+    <div className="shell">
+      <main className="page stack">
+        <section className="auth-card stack">
+          <div className="stack-sm">
+            <h1>Acesso do estabelecimento</h1>
+            <p className="muted">Entre com o e-mail e a senha fornecidos pelo responsável.</p>
           </div>
 
-          <div className="field">
-            <label htmlFor="login-password">Senha</label>
-            <input
-              id="login-password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </div>
+          {!isSupabaseConfigured && (
+            <Notice tone="error">
+              A autenticação não está configurada. Defina a URL e a chave pública anon do projeto de desenvolvimento.
+            </Notice>
+          )}
 
-          {error && <Notice tone="error">{error}</Notice>}
+          <form className="stack" onSubmit={handleSubmit}>
+            <div className="field">
+              <label htmlFor="login-email">E-mail</label>
+              <input
+                id="login-email"
+                type="email"
+                autoComplete="username"
+                required
+                maxLength={254}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </div>
 
-          <button type="submit" className="btn btn-primary" disabled={loading || !isSupabaseConfigured}>
-            {loading ? 'Verificando acesso…' : 'Entrar'}
-          </button>
-        </form>
-        <p className="small muted">O cadastro de responsáveis é feito manualmente pelo painel do Supabase.</p>
-      </section>
-    </main>
+            <div className="field">
+              <label htmlFor="login-password">Senha</label>
+              <input
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </div>
+
+            {error && <Notice tone="error">{error}</Notice>}
+
+            <button type="submit" className="btn btn-primary" disabled={loading || !isSupabaseConfigured}>
+              {loading ? 'Verificando acesso…' : 'Entrar'}
+            </button>
+          </form>
+          <p className="small muted">O cadastro de responsáveis é feito manualmente pelo painel do Supabase.</p>
+        </section>
+      </main>
+      <footer className="site-footer small muted">Nexo Agendamentos</footer>
+    </div>
   )
 }

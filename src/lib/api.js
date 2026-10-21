@@ -118,6 +118,19 @@ export function updateAdminBookingInternalNotes(bookingId, notes) {
   })
 }
 
+export function createAdminBooking(businessId, optionId, startsAt, form) {
+  return adminRpc('admin_create_booking', {
+    p_business_id: businessId,
+    p_option_id: optionId,
+    p_starts_at: startsAt,
+    p_customer_name: form.customerName,
+    p_customer_phone: form.customerPhone,
+    p_pet_name: form.petName,
+    p_pet_breed: form.petBreed || null,
+    p_notes: form.notes || null,
+  })
+}
+
 export function setAdminBookingStatus(bookingId, status) {
   return adminRpc('admin_set_booking_status', {
     p_booking_id: bookingId,
