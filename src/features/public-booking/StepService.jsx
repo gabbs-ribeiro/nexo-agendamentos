@@ -1,39 +1,19 @@
-import { SIZE_LABELS, formatBRL, formatDuration } from '../../lib/format.js'
 import { useFocusOnMount } from './useFocusOnMount.js'
+import ServiceCard from './ServiceCard.jsx'
 
 export default function StepService({ services, optionId, onSelect, onNext }) {
   const h1 = useFocusOnMount()
   return (
     <div className="stack">
       <div className="stack-sm">
-        <h1 ref={h1} tabIndex={-1}>Escolha o serviço</h1>
-        <p className="muted">Selecione também o porte do seu pet: ele define o preço e o tempo.</p>
+        <h1 ref={h1} tabIndex={-1}>Escolha um serviço e porte</h1>
+        <p className="muted">Cada horário é reservado para um serviço e um pet. O porte define o preço e a duração.</p>
       </div>
-      <fieldset>
-        <legend className="sr-only">Serviço e porte do pet</legend>
+      <div className="public-service-list">
         {services.map((s) => (
-          <div key={s.service_id} role="group" aria-labelledby={`svc-${s.service_id}`}>
-            <p className="group-label" id={`svc-${s.service_id}`}>{s.name}</p>
-            {s.description && <p className="service-description">{s.description}</p>}
-            {s.options.map((o) => (
-              <label className="choice" key={o.option_id}>
-                <input
-                  type="radio"
-                  name="option"
-                  value={o.option_id}
-                  checked={optionId === o.option_id}
-                  onChange={() => onSelect(o.option_id)}
-                />
-                <span className="choice-body">
-                  <span className="choice-title">Porte {(o.size_label || SIZE_LABELS[o.size] || o.size).toLowerCase()}</span>
-                  <span className="choice-price">{formatBRL(o.price_cents)}</span>
-                  <span className="muted small">{formatDuration(o.duration_minutes)}</span>
-                </span>
-              </label>
-            ))}
-          </div>
+          <ServiceCard key={s.service_id} service={s} selectedOptionId={optionId} onSelectOption={onSelect} />
         ))}
-      </fieldset>
+      </div>
       <div className="actions">
         <button type="button" className="btn btn-primary" disabled={!optionId} onClick={onNext}>Continuar</button>
       </div>

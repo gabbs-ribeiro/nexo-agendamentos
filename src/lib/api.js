@@ -153,7 +153,7 @@ function throwIfApiError(error, operation) {
 export async function getBusinessControl(businessId) {
   const { data, error } = await supabase
     .from('businesses')
-    .select('id, name, logo_path, primary_color')
+    .select('id, name, logo_path, primary_color, contact_phone')
     .eq('id', businessId)
     .single()
   throwIfApiError(error, 'business control select')
@@ -190,7 +190,12 @@ export async function listBusinessCatalog(businessId) {
 export async function updateBusinessProfile(businessId, profile) {
   const { data, error } = await supabase
     .from('businesses')
-    .update({ name: profile.name, logo_path: profile.logo_path, primary_color: profile.primary_color })
+    .update({
+      name: profile.name,
+      logo_path: profile.logo_path,
+      primary_color: profile.primary_color,
+      contact_phone: profile.contact_phone,
+    })
     .eq('id', businessId)
     .select('id')
     .maybeSingle()

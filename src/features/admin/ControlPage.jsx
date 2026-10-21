@@ -14,7 +14,7 @@ import {
   uploadBusinessLogo,
 } from '../../lib/api.js'
 import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
-import { formatBRL } from '../../lib/format.js'
+import { digitsOnly, formatBRL, isValidPhone, maskPhone } from '../../lib/format.js'
 import { useAdminBusiness, useUpdateAdminBusiness } from './AdminBusinessContext.jsx'
 import { priceToCents, sizeCodeForName } from './serviceCatalog.js'
 
@@ -76,7 +76,11 @@ export default function ControlPage() {
         listBusinessCatalog(business.id),
       ])
       setProfile(businessProfile)
-      setProfileDraft({ name: businessProfile.name, primary_color: businessProfile.primary_color })
+      setProfileDraft({
+        name: businessProfile.name,
+        primary_color: businessProfile.primary_color,
+        contact_phone: maskPhone(businessProfile.contact_phone ?? ''),
+      })
       setSizeDrafts(Object.fromEntries(catalog.sizes.map((size) => [size.code, size.name])))
       setState({ status: 'ready', ...catalog })
     } catch (error) {
@@ -140,6 +144,11 @@ export default function ControlPage() {
         setProfileError('Informe um nome de estabelecimento com até 80 caracteres.')
         return
       }
+      const contactPhone = digitsOnly(profileDraft.contact_phone)
+      if (contactPhone && !isValidPhone(profileDraft.contact_phone)) {
+        setProfileError('Informe um WhatsApp válido com DDD ou deixe o campo vazio.')
+        return
+      }
       if (logoFile) {
         uploadedPath = await uploadBusinessLogo(business.id, logoFile)
         newPath = uploadedPath
@@ -149,6 +158,7 @@ export default function ControlPage() {
           name,
           primary_color: profileDraft.primary_color,
           logo_path: newPath,
+          contact_phone: contactPhone || null,
         })
       } catch (error) {
         if (uploadedPath) {
@@ -158,12 +168,19 @@ export default function ControlPage() {
         }
         throw error
       }
-      setProfile({ ...profile, ...profileDraft, name, logo_path: newPath })
+      setProfile({
+        ...profile,
+        ...profileDraft,
+        name,
+        logo_path: newPath,
+        contact_phone: contactPhone || null,
+      })
       updateAdminBusiness({
         id: business.id,
         name,
         logo_path: newPath,
         primary_color: profileDraft.primary_color,
+        contact_phone: contactPhone || null,
       })
       setLogoFile(null)
       if (uploadedPath && profile.logo_path) {
@@ -326,6 +343,16 @@ export default function ControlPage() {
             <label htmlFor="business-name">Nome do estabelecimento</label>
             <input id="business-name" type="text" maxLength={80} required value={profileDraft.name}
               onChange={(event) => setProfileDraft((current) => ({ ...current, name: event.target.value }))} />
+          </div>
+          <div className="field">
+            <label htmlFor="business-contact-phone">WhatsApp do estabelecimento (opcional)</label>
+            <input id="business-contact-phone" type="tel" inputMode="tel" autoComplete="tel"
+              placeholder="(41) 99999-9999" value={profileDraft.contact_phone ?? ''}
+              onChange={(event) => setProfileDraft((current) => ({
+                ...current,
+                contact_phone: maskPhone(event.target.value),
+              }))} />
+            <span className="hint">Este número aparece no link público para o cliente entrar em contato.</span>
           </div>
           <div className="field">
             <label htmlFor="business-logo">Foto do perfil</label>

@@ -39,7 +39,7 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 30 testes, incluindo apresentação histórica, validação de preços/portes, fusos e montagem segura do link público. Última execução: `# pass 30`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 33 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos e montagem segura do link público. Última execução: `# pass 33`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -53,7 +53,9 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] A falha da RPC de cancelamento mantém o modal aberto, não mostra sucesso e apresenta mensagem amigável.
 - [ ] Detalhes mostram serviço, porte, duração, preço e horários registrados; edição das informações do tutor/pet não altera snapshots.
 - [ ] Anotações internas são salvas separadas das observações do tutor e só aparecem para membros do negócio.
+- [ ] Na agenda, observações preenchidas pelo cliente e anotações internas aparecem com rótulos e cores diferentes.
 - [ ] A aba Controle altera nome/foto/cor públicos; o perfil atualizado aparece na rota `/<slug>`.
+- [ ] A aba Controle salva WhatsApp com DDD ou permite deixá-lo vazio; o número correto aparece como contato na página pública.
 - [ ] Cabeçalho do painel e da página pública mostram a logo e o nome atualizados do estabelecimento; “Nexo Agendamentos” só aparece em tamanho pequeno no rodapé.
 - [ ] Início mostra os compromissos de hoje, texto de agenda vazia e anotações internas em destaque; o link público pode ser copiado e compartilhado.
 - [ ] Calendário permite escolher dia, consulta horários pelo banco e cria agendamento manual com serviço, porte, data/horário, dados do tutor/pet e observações via RPC; anotação interna é salva pela RPC separada.
@@ -64,6 +66,8 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 **Manual no navegador, contra o DEV** (`npm run dev`, `.env.local` com a URL e a chave anon do DEV; negócio com ao menos 1 serviço e 1 porte):
 - [ ] `/<slug>` mostra nome, serviços, preços e duração; slug inexistente mostra "Página não encontrada".
 - [ ] Fluxo completo: serviço/porte → dia → horário → dados → confirmar → comprovante com o horário correto.
+- [ ] Cada cartão apresenta o serviço e “A partir de” com o menor preço; selecionar um porte atualiza preço/duração no resumo e inicia uma reserva para um serviço/animal. Para outro serviço ou animal, é necessário reservar outro horário.
+- [ ] O comprovante agradece ao cliente, confirma que o serviço foi agendado e oferece contato pelo WhatsApp configurado em Controle.
 - [ ] No celular (ou 375 px): botões grandes, nada cortado, barra "Continuar/Confirmar" visível, teclado numérico no telefone.
 - [ ] Fuso: com o relógio/fuso do computador diferente de São Paulo, os horários exibidos continuam os do negócio.
 - [ ] Dois navegadores no **mesmo horário**: o segundo recebe "Esse horário acabou de ser ocupado", volta à escolha de horário e mantém os dados digitados.
