@@ -38,7 +38,7 @@ export default function BusinessHoursSection({ businessId }) {
   function addInterval(day) {
     setDraft((current) => ({
       ...current,
-      [day]: [...current[day], { opens_at: '', closes_at: '', closes_at_midnight: false }],
+      [day]: [...current[day], { opens_at: '', closes_at: '' }],
     }))
     setError('')
     setNotice('')
@@ -108,17 +108,8 @@ export default function BusinessHoursSection({ businessId }) {
                 <div className="field">
                   <label htmlFor={`hours-${value}-${index}-close`}>Fecha</label>
                   <input id={`hours-${value}-${index}-close`} type="time" step="60" required
-                    disabled={interval.closes_at_midnight}
                     value={interval.closes_at}
-                    onChange={(event) => {
-                      updateInterval(value, index, 'closes_at', event.target.value)
-                      updateInterval(value, index, 'closes_at_midnight', false)
-                    }} />
-                  <label className="consent business-hours-midnight">
-                    <input type="checkbox" checked={interval.closes_at_midnight}
-                      onChange={(event) => updateInterval(value, index, 'closes_at_midnight', event.target.checked)} />
-                    <span>Fecha à meia-noite</span>
-                  </label>
+                    onChange={(event) => updateInterval(value, index, 'closes_at', event.target.value)} />
                 </div>
                 <button className="btn-text business-hours-remove" type="button"
                   aria-label={`Remover intervalo ${index + 1} de ${label}`}

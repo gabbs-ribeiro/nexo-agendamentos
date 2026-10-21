@@ -21,8 +21,7 @@ export function businessHoursDraft(rows) {
     rows.filter((row) => row.day_of_week === value).map((row) => ({
       id: row.id,
       opens_at: timeForMinute(row.opens_minute),
-      closes_at: row.closes_minute === 1440 ? '18:00' : timeForMinute(row.closes_minute),
-      closes_at_midnight: row.closes_minute === 1440,
+      closes_at: row.closes_minute === 1440 ? '00:00' : timeForMinute(row.closes_minute),
     })),
   ]))
 }
@@ -39,7 +38,8 @@ export function businessHoursPayload(draft) {
   for (const { value: dayOfWeek } of WEEKDAYS) {
     const dayIntervals = (draft[dayOfWeek] ?? []).map((interval) => {
       const opensMinute = minuteFromTime(interval.opens_at, false)
-      const closesMinute = interval.closes_at_midnight ? 1440 : minuteFromTime(interval.closes_at, false)
+      const selectedCloseMinute = minuteFromTime(interval.closes_at, false)
+      const closesMinute = selectedCloseMinute === 0 && opensMinute !== 0 ? 1440 : selectedCloseMinute
       if (opensMinute === null || closesMinute === null || closesMinute <= opensMinute) {
         throw new Error('INVALID_HOURS')
       }
