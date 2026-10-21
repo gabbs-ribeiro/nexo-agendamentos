@@ -85,14 +85,14 @@ begin
   assert n = 1, 'remarcacao recusada alterou o agendamento';
   raise notice 'PASS: remarcar funciona, inclusive sobre o proprio horario, e recusa conflitos';
 
-  -- gap atual do negocio passa a valer ao remarcar
+  -- a remarcacao mantem o gap snapshot do agendamento, mesmo se a configuracao mudar
   update public.businesses set buffer_minutes = 20 where id = c_biz;
-  -- 08:00 com gap de 20 min ocupa ate 09:05: cabe antes do agendamento das 10:00
+  -- 08:00 com gap snapshot de 10 min continua antes do agendamento das 10:00
   r := public.admin_reschedule_booking(v_a, (v_date + time '08:00') at time zone 'America/Sao_Paulo');
   assert (r->>'ok')::boolean, 'remarcar com novo gap falhou: ' || r::text;
-  select count(*) into n from public.bookings where id = v_a and buffer_minutes = 20;
-  assert n = 1, 'remarcacao nao atualizou o gap';
-  raise notice 'PASS: ao remarcar, o gap atual do negocio e aplicado';
+  select count(*) into n from public.bookings where id = v_a and buffer_minutes = 10;
+  assert n = 1, 'remarcacao alterou o gap historico';
+  raise notice 'PASS: ao remarcar, o gap historico e preservado';
 
   ---------------------------------------------------------------- editar dados
   r := public.admin_update_booking_details(v_a, 'Ana Costa Souza', '123', 'Mel');

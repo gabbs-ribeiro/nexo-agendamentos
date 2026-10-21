@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import Notice from '../../components/Notice.jsx'
 import { ERROR_MESSAGES } from '../../lib/errors.js'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase.js'
 import { getAdminBusinesses } from './access.js'
+import AdminWorkspace from '../admin/AdminWorkspace.jsx'
 
 export default function AdminAccessPage() {
-  const navigate = useNavigate()
   const [state, setState] = useState({ status: 'loading' })
-  const [loggingOut, setLoggingOut] = useState(false)
-  const [logoutError, setLogoutError] = useState('')
 
   const checkAccess = useCallback(async () => {
     setState({ status: 'loading' })
@@ -26,30 +24,15 @@ export default function AdminAccessPage() {
       }
 
       const businesses = await getAdminBusinesses(data.user.id)
-      setState(businesses.length > 0 ? { status: 'authorized' } : { status: 'denied' })
+      setState(businesses.length > 0
+        ? { status: 'authorized', businesses }
+        : { status: 'denied' })
     } catch {
       setState({ status: 'error' })
     }
   }, [])
 
   useEffect(() => { checkAccess() }, [checkAccess])
-
-  async function logout() {
-    setLoggingOut(true)
-    setLogoutError('')
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        setLogoutError(ERROR_MESSAGES.AUTH_LOGOUT_FAILED)
-        return
-      }
-      navigate('/login', { replace: true })
-    } catch {
-      setLogoutError(ERROR_MESSAGES.AUTH_LOGOUT_FAILED)
-    } finally {
-      setLoggingOut(false)
-    }
-  }
 
   if (state.status === 'unauthenticated') return <Navigate to="/login" replace />
   if (state.status === 'loading') {
@@ -72,21 +55,13 @@ export default function AdminAccessPage() {
       </main>
     )
   }
-
-  return (
-    <main className="page stack">
-      <h1>Painel administrativo</h1>
-      {state.status === 'denied' ? (
+  if (state.status === 'denied') {
+    return (
+      <main className="page stack">
         <Notice tone="error">{ERROR_MESSAGES.AUTH_ACCESS_DENIED}</Notice>
-      ) : (
-        <Notice>
-          Seu acesso foi validado. O painel administrativo ainda não foi implementado.
-        </Notice>
-      )}
-      {logoutError && <Notice tone="error">{logoutError}</Notice>}
-      <button type="button" className="btn btn-quiet" onClick={logout} disabled={loggingOut}>
-        {loggingOut ? 'Saindo…' : 'Sair'}
-      </button>
-    </main>
-  )
+      </main>
+    )
+  }
+
+  return <AdminWorkspace businesses={state.businesses} />
 }

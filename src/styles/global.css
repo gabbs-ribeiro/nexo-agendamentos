@@ -137,7 +137,7 @@ legend { padding: 0; font-size: 1.125rem; font-weight: 700; margin-bottom: 12px;
 /* Formulario */
 .field label, .field .label { display: block; font-weight: 600; margin-bottom: 6px; }
 .field input[type='text'], .field input[type='tel'], .field input[type='email'],
-.field input[type='password'], .field textarea {
+.field input[type='password'], .field input[type='date'], .field textarea, .field select {
   width: 100%; min-height: 48px; padding: 10px 12px; font: 400 1rem var(--font); color: var(--ink);
   background: var(--surface); border: 2px solid var(--line); border-radius: var(--radius-sm);
 }
@@ -166,7 +166,69 @@ legend { padding: 0; font-size: 1.125rem; font-weight: 700; margin-bottom: 12px;
 
 .auth-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
 
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* Painel administrativo */
+.admin-shell { min-height: 100dvh; }
+.admin-header {
+  min-height: 64px; padding: 10px max(20px, calc((100vw - 960px) / 2));
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.admin-brand { font-weight: 800; text-decoration: none; }
+.admin-business-picker { min-width: 180px; }
+.admin-business-picker label { font-size: 0.8125rem; }
+.admin-business-picker select { width: 100%; min-height: 40px; }
+.admin-nav {
+  display: flex; gap: 8px; padding: 8px max(20px, calc((100vw - 960px) / 2));
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.admin-nav a { padding: 10px 14px; border-radius: var(--radius-sm); text-decoration: none; }
+.admin-nav a[aria-current='page'] { background: var(--info-bg); font-weight: 700; }
+.admin-content { max-width: 960px; margin: 0 auto; padding: 24px 20px 40px; }
+.booking-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border-radius: var(--radius); }
+.booking-list li + li { border-top: 1px solid var(--line); }
+.booking-list-link {
+  display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 12px;
+  min-height: 72px; padding: 12px 16px; text-decoration: none;
+}
+.booking-list-link:hover { background: var(--info-bg); }
+.booking-list-time, .booking-list-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+.booking-list-main { display: grid; }
+.booking-list-main > span { color: var(--muted); font-size: 0.875rem; }
+.detail-section {
+  padding: 18px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.detail-rows { margin: 0; display: grid; gap: 8px; }
+.detail-rows > div { display: flex; justify-content: space-between; gap: 16px; }
+.detail-rows dt { color: var(--muted); }
+.detail-rows dd { margin: 0; text-align: right; font-weight: 600; }
+.detail-edit-fields { display: grid; gap: 14px; }
+.detail-actions { display: grid; gap: 10px; }
+.detail-heading { display: flex; justify-content: space-between; align-items: flex-start; }
+.booking-status { display: inline-flex; padding: 4px 10px; border-radius: 999px; background: var(--info-bg); font-weight: 700; }
+.booking-status-cancelled { background: var(--danger-bg); color: var(--danger); }
+.confirm-dialog {
+  width: min(100% - 32px, 460px); padding: 22px; border: 1px solid var(--line);
+  border-radius: var(--radius); color: var(--ink); background: var(--surface);
+}
+.confirm-dialog::backdrop { background: rgb(10 20 24 / 55%); }
+.confirm-dialog-content { display: grid; gap: 8px; }
+.confirm-dialog-actions { display: grid; gap: 10px; }
+
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+@media (min-width: 600px) {
+  .confirm-dialog-actions { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 520px) {
+  .admin-header { flex-wrap: wrap; }
+  .booking-list-link { grid-template-columns: 64px 1fr; }
+  .booking-list-price { grid-column: 2; }
+}
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
