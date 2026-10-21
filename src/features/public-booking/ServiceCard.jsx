@@ -19,7 +19,7 @@ export default function ServiceCard({ service, selectedOptionId, onSelectOption 
       <fieldset className="public-size-picker">
         <legend>Escolha o porte do pet</legend>
         <div className="public-size-options">
-          {service.options.map((option) => (
+          {service.options.map((option, index) => (
             <button
               key={option.option_id}
               type="button"
@@ -28,9 +28,13 @@ export default function ServiceCard({ service, selectedOptionId, onSelectOption 
               aria-label={`Selecionar porte ${option.size_label}, ${formatBRL(option.price_cents)}`}
               onClick={() => onSelectOption(option.option_id)}
             >
-              <span className="public-size-label">Porte {option.size_label}</span>
+              <span className="size-dog" aria-hidden="true" style={{ fontSize: `${Math.min(1.05 + index * 0.22, 1.7)}rem` }}>🐶</span>
+              <span className="size-main">
+                <span className="public-size-label">Porte {option.size_label}</span>
+                <small>{formatDuration(option.duration_minutes)}</small>
+              </span>
               <strong>{formatBRL(option.price_cents)}</strong>
-              <small>{formatDuration(option.duration_minutes)}</small>
+              <span className="size-check" aria-hidden="true">✓</span>
             </button>
           ))}
         </div>
