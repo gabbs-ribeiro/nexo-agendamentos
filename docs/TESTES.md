@@ -1,6 +1,6 @@
 # Testes e validação de segurança
 
-**Regra:** escrever política RLS não é validar segurança. O responsável informa que as migrations até `20261021000002_admin_control_catalog.sql` foram executadas em DEV. A função instalada `get_public_business` não retorna a chave `contact_phone`; aplique a migration corretiva `20261021000003_restore_public_business_contact.sql` em DEV antes de repetir os testes. A primeira consulta do teste 04 ainda precisa retornar zero linhas.
+**Regra:** escrever política RLS não é validar segurança. O responsável informa que as migrations anteriores foram executadas em DEV e compartilhou uma atualização de `get_public_business` para incluir `contact_phone`; confirme o resultado final do teste 01. A migration `20261021000004_service_categories.sql` é nova, ainda precisa ser aplicada manualmente em DEV e deve ser seguida pelos testes 01, 04 e 09. A primeira consulta do teste 04 deve retornar zero linhas.
 
 ## Como rodar (SQL Editor do Supabase DEV, como `postgres`)
 1. Aplicar as migrations em ordem (`supabase/migrations/`). Em caso de erro, **pare e corrija a migration**; não improvise no painel.
@@ -9,15 +9,15 @@
 
 | # | Arquivo | O que prova | Esperado | Resultado |
 |---|---|---|---|---|
-| 01 | `tests/01_isolation_and_permissions.sql` | Negócio A não lê/altera/apaga/insere dados de B; usuário sem vínculo vê 0 linhas; `anon` sem acesso a tabelas nem a funções admin/internas; respostas públicas sem dados internos | só PASS | ❌ falhou: resposta sem `contact_phone`; migration corretiva criada, pendente de aplicação e nova execução |
+| 01 | `tests/01_isolation_and_permissions.sql` | Negócio A não lê/altera/apaga/insere dados de B; usuário sem vínculo vê 0 linhas; `anon` sem acesso a tabelas nem a funções admin/internas; respostas públicas sem dados internos | só PASS | ⚠️ falha anterior por ausência de `contact_phone`; resultado após a correção ainda precisa ser confirmado |
 | 02 | `tests/02_booking_rules.sql` | Grade, duração real (45 min), gap, expediente, bloqueios, fuso, antecedência, inativos, idempotência, limite por telefone, constraints do banco | só PASS | ✅ executado em DEV (confirmação do responsável) |
 | 03 | `tests/03_admin_functions.sql` | Criar/remarcar/status/editar/bloqueios como admin, mesmas regras de agenda; remarcação preserva gap snapshot | só PASS | ✅ responsável relata execução sem erro após migration 01; repetir após 02 |
 | 04 | `tests/04_permission_audit.sql` | RLS ligada, grants mínimos, funções executáveis só por quem deve, `search_path` fixo, sem sobreposição de dados | **0 linhas** na 1ª consulta | ⚠️ executado; confirmar que a primeira consulta retornou 0 linhas |
 | 05–07 | `tests/05…`, `concurrency_test.sh`, `06…`, `07…` | N requisições simultâneas reais pela API pública: 1 sucesso no mesmo horário, 1 sucesso entre horários conflitantes, idempotência concorrente | script termina com “todos os cenários passaram”; 06: 3 agendamentos, 0 sobreposições | ✅ executados em DEV (confirmação do responsável) |
 | 08 | `tests/08_booking_history_and_cancellation.sql` | Novas reservas usam configurações atuais; edição/arquivamento/remarcação preservam snapshots; notas internas e isolamento; cancelamento definitivo libera horário | só PASS | ✅ responsável relata execução sem erro após migration 01; repetir após 02 |
-| 09 | `tests/09_business_control_catalog.sql` | Perfil, serviço com descrição, porte customizado, preço/duração por opção, disponibilidade e snapshot do rótulo | só PASS | ☐ executar/repetir após aplicar a migration corretiva 03 |
+| 09 | `tests/09_business_control_catalog.sql` | Perfil, categorias, associação e edição, serviço com descrição, porte customizado, preço/duração por opção, disponibilidade e snapshot do rótulo | só PASS | ☐ executar após aplicar a migration de categorias 04 |
 
-Em DEV, aplique `20261021000003_restore_public_business_contact.sql` e rode 01–04 e 08–09. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não aplique correções em produção antes da validação.
+Em DEV, aplique `20261021000004_service_categories.sql` e rode 01, 04 e 09. Se o teste 01 ainda não passou após a correção de `contact_phone`, repita também 01–04 e 08–09. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não aplique correções em produção antes da validação.
 
 ## Concorrência: o que o script cobre e o que não cobre
 Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, mesma chave de idempotência) pela API real.
@@ -39,7 +39,7 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 33 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos e montagem segura do link público. Última execução: `# pass 33`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 35 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria e elegibilidade para concluir. Última execução nesta entrega: `# pass 35`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -51,6 +51,8 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Cancelar exige confirmação; “Voltar” e Escape fecham o modal sem alterar o status.
 - [ ] Ao confirmar o cancelamento, a linha histórica permanece, o status muda e o horário volta a ficar disponível.
 - [ ] A falha da RPC de cancelamento mantém o modal aberto, não mostra sucesso e apresenta mensagem amigável.
+- [ ] Início e Calendário diferenciam agendamentos pendentes e concluídos; concluir só fica disponível depois do horário de término, exige confirmação, atualiza o status via RPC e mantém o registro visível.
+- [ ] Fechar/cancelar a confirmação de conclusão não altera o status; falha da RPC mantém o modal aberto com mensagem amigável.
 - [ ] Detalhes mostram serviço, porte, duração, preço e horários registrados; edição das informações do tutor/pet não altera snapshots.
 - [ ] Anotações internas são salvas separadas das observações do tutor e só aparecem para membros do negócio.
 - [ ] Na agenda, observações preenchidas pelo cliente e anotações internas aparecem com rótulos e cores diferentes.
@@ -61,12 +63,17 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Calendário permite escolher dia, consulta horários pelo banco e cria agendamento manual com serviço, porte, data/horário, dados do tutor/pet e observações via RPC; anotação interna é salva pela RPC separada.
 - [ ] Em caso de falha de rede ao criar agendamento manual, a interface avisa para conferir a agenda antes de repetir; falha ao salvar nota não simula sucesso e aponta os detalhes do agendamento.
 - [ ] Serviços exibem a descrição no fluxo público; porte, preço e duração configurados alimentam as novas reservas.
+- [ ] Categorias podem ser criadas/editadas no Controle; serviços novos/editados exigem uma categoria e aparecem agrupados no link público, inclusive categorias vazias.
+- [ ] Alterar o nome/descrição da categoria ou mover um serviço não modifica os snapshots de agendamentos existentes.
+- [ ] Editor de serviço abre em janela própria; calendário, diálogo de criação manual e dias de reserva permanecem dentro da viewport em 375 px.
+- [ ] Seleção de porte mostra seu nome, preço e duração; o resumo do atendimento permanece compacto em telas pequenas.
 - [ ] Renomear ou desativar um porte não altera rótulos e snapshots de agendamentos existentes; porte desativado deixa de oferecer novos horários.
 
 **Manual no navegador, contra o DEV** (`npm run dev`, `.env.local` com a URL e a chave anon do DEV; negócio com ao menos 1 serviço e 1 porte):
 - [ ] `/<slug>` mostra nome, serviços, preços e duração; slug inexistente mostra "Página não encontrada".
 - [ ] Fluxo completo: serviço/porte → dia → horário → dados → confirmar → comprovante com o horário correto.
 - [ ] Cada cartão apresenta o serviço e “A partir de” com o menor preço; selecionar um porte atualiza preço/duração no resumo e inicia uma reserva para um serviço/animal. Para outro serviço ou animal, é necessário reservar outro horário.
+- [ ] A página agrupa serviços por categoria e mostra título/descrição editáveis; categorias sem serviços exibem estado vazio sem oferecer reserva.
 - [ ] O comprovante agradece ao cliente, confirma que o serviço foi agendado e oferece contato pelo WhatsApp configurado em Controle.
 - [ ] No celular (ou 375 px): botões grandes, nada cortado, barra "Continuar/Confirmar" visível, teclado numérico no telefone.
 - [ ] Fuso: com o relógio/fuso do computador diferente de São Paulo, os horários exibidos continuam os do negócio.

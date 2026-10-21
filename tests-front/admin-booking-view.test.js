@@ -1,6 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { bookingDetails, canCancelBooking, dateRangeInTimezone, dateInTimezone } from '../src/features/admin/bookingView.js'
+import {
+  bookingDetails,
+  canCancelBooking,
+  canCompleteBooking,
+  dateRangeInTimezone,
+  dateInTimezone,
+} from '../src/features/admin/bookingView.js'
 
 const booking = {
   service_name: 'Banho original',
@@ -38,6 +44,13 @@ test('apenas agendamentos confirmados podem ser cancelados', () => {
   assert.equal(canCancelBooking('cancelled'), false)
   assert.equal(canCancelBooking('completed'), false)
   assert.equal(canCancelBooking('no_show'), false)
+})
+
+test('só permite concluir agendamento confirmado depois do término', () => {
+  assert.equal(canCompleteBooking(booking, Date.parse(booking.ends_at) - 1), false)
+  assert.equal(canCompleteBooking(booking, Date.parse(booking.ends_at)), true)
+  assert.equal(canCompleteBooking({ ...booking, status: 'completed' }, Date.parse(booking.ends_at)), false)
+  assert.equal(canCompleteBooking({ ...booking, status: 'cancelled' }, Date.parse(booking.ends_at)), false)
 })
 
 test('porte personalizado usa snapshot do agendamento em vez do nome atual no catalogo', () => {

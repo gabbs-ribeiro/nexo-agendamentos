@@ -25,9 +25,10 @@ export default function ServiceCard({ service, selectedOptionId, onSelectOption 
               type="button"
               className="public-size-option"
               aria-pressed={selectedOptionId === option.option_id}
+              aria-label={`Selecionar porte ${option.size_label}, ${formatBRL(option.price_cents)}`}
               onClick={() => onSelectOption(option.option_id)}
             >
-              <span>{option.size_label}</span>
+              <span className="public-size-label">Porte {option.size_label}</span>
               <strong>{formatBRL(option.price_cents)}</strong>
               <small>{formatDuration(option.duration_minutes)}</small>
             </button>
@@ -36,7 +37,7 @@ export default function ServiceCard({ service, selectedOptionId, onSelectOption 
       </fieldset>
       {selected && (
         <p className="public-service-current-price" aria-live="polite">
-          {selected.size_label}: <strong>{formatBRL(selected.price_cents)}</strong> · {formatDuration(selected.duration_minutes)}
+          Selecionado: porte {selected.size_label} · <strong>{formatBRL(selected.price_cents)}</strong> · {formatDuration(selected.duration_minutes)}
         </p>
       )}
     </article>

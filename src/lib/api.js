@@ -26,6 +26,10 @@ export async function listPublicServices(slug) {
   return (await rpc('list_public_services', { p_slug: slug })) ?? []
 }
 
+export async function listPublicServiceCategories(slug) {
+  return (await rpc('list_public_service_categories', { p_slug: slug })) ?? []
+}
+
 export async function getAvailableSlots(slug, optionId, date) {
   return (await rpc('get_available_slots', { p_slug: slug, p_option_id: optionId, p_date: date })) ?? []
 }
@@ -56,7 +60,7 @@ export async function listAdminBookings(businessId, start, end) {
     .from('bookings')
     .select('id, business_id, service_name, size, size_label, starts_at, ends_at, duration_minutes, buffer_minutes, price_cents, status, customer_name, customer_phone, pet_name, pet_breed, notes, internal_notes')
     .eq('business_id', businessId)
-    .eq('status', 'confirmed')
+    .in('status', ['confirmed', 'completed'])
     .gte('starts_at', start)
     .lt('starts_at', end)
     .order('starts_at', { ascending: true })
@@ -161,14 +165,19 @@ export async function getBusinessControl(businessId) {
 }
 
 export async function listBusinessCatalog(businessId) {
-  const [sizesResult, servicesResult, optionsResult] = await Promise.all([
+  const [sizesResult, categoriesResult, servicesResult, optionsResult] = await Promise.all([
     supabase.from('business_sizes')
       .select('business_id, code, name, sort_order, is_active')
       .eq('business_id', businessId)
       .order('sort_order')
       .order('name'),
+    supabase.from('service_categories')
+      .select('id, business_id, name, description, sort_order')
+      .eq('business_id', businessId)
+      .order('sort_order')
+      .order('name'),
     supabase.from('services')
-      .select('id, business_id, name, description, is_active, archived_at')
+      .select('id, business_id, category_id, name, description, is_active, archived_at')
       .eq('business_id', businessId)
       .order('name'),
     supabase.from('service_options')
@@ -176,10 +185,12 @@ export async function listBusinessCatalog(businessId) {
       .eq('business_id', businessId),
   ])
   throwIfApiError(sizesResult.error, 'business sizes select')
+  throwIfApiError(categoriesResult.error, 'service categories select')
   throwIfApiError(servicesResult.error, 'services select')
   throwIfApiError(optionsResult.error, 'service options select')
   return {
     sizes: sizesResult.data ?? [],
+    categories: categoriesResult.data ?? [],
     services: (servicesResult.data ?? []).map((service) => ({
       ...service,
       options: (optionsResult.data ?? []).filter((option) => option.service_id === service.id),
@@ -249,16 +260,44 @@ export async function setBusinessSizeActive(businessId, code, isActive) {
   if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
 }
 
+export async function saveServiceCategory(businessId, category) {
+  const query = supabase.from('service_categories')
+  const result = category.id
+    ? await query.update({ name: category.name, description: category.description })
+      .eq('business_id', businessId)
+      .eq('id', category.id)
+      .select('id')
+      .maybeSingle()
+    : await query.insert({
+      business_id: businessId,
+      name: category.name,
+      description: category.description,
+      sort_order: category.sort_order,
+    }).select('id').single()
+  throwIfApiError(result.error, 'service category save')
+  if (!result.data) throw new ApiError('AUTH_ACCESS_DENIED')
+}
+
 export async function saveService(businessId, service, options) {
   const serviceResult = service.id
     ? await supabase.from('services')
-      .update({ name: service.name, description: service.description })
+      .update({
+        category_id: service.category_id,
+        name: service.name,
+        description: service.description,
+      })
       .eq('business_id', businessId)
       .eq('id', service.id)
       .select('id')
       .maybeSingle()
     : await supabase.from('services')
-      .insert({ business_id: businessId, name: service.name, description: service.description, is_active: true })
+      .insert({
+        business_id: businessId,
+        category_id: service.category_id,
+        name: service.name,
+        description: service.description,
+        is_active: true,
+      })
       .select('id')
       .single()
   throwIfApiError(serviceResult.error, 'service save')

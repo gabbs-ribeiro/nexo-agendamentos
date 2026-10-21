@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Notice from '../../components/Notice.jsx'
 import {
@@ -8,6 +8,7 @@ import {
   logoUrl,
   removeBusinessLogo,
   saveBusinessSize,
+  saveServiceCategory,
   saveService,
   setBusinessSizeActive,
   updateBusinessProfile,
@@ -16,6 +17,7 @@ import {
 import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
 import { digitsOnly, formatBRL, isValidPhone, maskPhone } from '../../lib/format.js'
 import { useAdminBusiness, useUpdateAdminBusiness } from './AdminBusinessContext.jsx'
+import { groupServicesByCategory } from './catalogCategories.js'
 import { priceToCents, sizeCodeForName } from './serviceCatalog.js'
 
 function ErrorNotice({ children }) {
@@ -32,9 +34,10 @@ function LogoPreview({ path, name }) {
   return <img className="control-avatar" src={url} alt="" onError={() => setFailed(true)} />
 }
 
-function newDraft(sizes) {
+function newDraft(sizes, categories) {
   return {
     id: null,
+    category_id: categories[0]?.id ?? '',
     name: '',
     description: '',
     options: Object.fromEntries(sizes.map((size) => [size.code, {
@@ -61,12 +64,18 @@ export default function ControlPage() {
   const [sizeError, setSizeError] = useState('')
   const [savingSize, setSavingSize] = useState(false)
   const [draft, setDraft] = useState(null)
+  const [categoryDraft, setCategoryDraft] = useState(null)
+  const [categoryError, setCategoryError] = useState('')
+  const [categoryNotice, setCategoryNotice] = useState('')
+  const [savingCategory, setSavingCategory] = useState(false)
   const [serviceError, setServiceError] = useState('')
   const [serviceNotice, setServiceNotice] = useState('')
   const [savingService, setSavingService] = useState(false)
   const [confirmAction, setConfirmAction] = useState(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
   const [confirmError, setConfirmError] = useState('')
+  const serviceDialogRef = useRef(null)
+  const categoryDialogRef = useRef(null)
 
   const load = useCallback(async () => {
     setState({ status: 'loading' })
@@ -90,6 +99,20 @@ export default function ControlPage() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    const dialog = serviceDialogRef.current
+    if (!dialog) return
+    if (draft && !dialog.open) dialog.showModal()
+    if (!draft && dialog.open) dialog.close()
+  }, [draft])
+
+  useEffect(() => {
+    const dialog = categoryDialogRef.current
+    if (!dialog) return
+    if (categoryDraft && !dialog.open) dialog.showModal()
+    if (!categoryDraft && dialog.open) dialog.close()
+  }, [categoryDraft])
+
   const activeSizes = useMemo(
     () => state.status === 'ready' ? state.sizes.filter((size) => size.is_active) : [],
     [state],
@@ -109,12 +132,14 @@ export default function ControlPage() {
     }))
     setDraft({
       id: service.id,
+      category_id: service.category_id,
       name: service.name,
       description: service.description ?? '',
       options,
     })
     setServiceError('')
     setServiceNotice('')
+    setCategoryError('')
   }
 
   function updateOption(code, key, value) {
@@ -265,7 +290,8 @@ export default function ControlPage() {
     setServiceError('')
     setServiceNotice('')
     try {
-      if (!draft.name.trim() || draft.name.trim().length > 80 || draft.description.length > 300) {
+      if (!state.categories.some((category) => category.id === draft.category_id)
+        || !draft.name.trim() || draft.name.trim().length > 80 || draft.description.length > 300) {
         throw new Error('validation')
       }
       const options = activeSizes.map((size) => {
@@ -293,11 +319,40 @@ export default function ControlPage() {
       await load()
     } catch (error) {
       setServiceError(error.message === 'validation'
-        ? 'Confira o nome, a descrição, os preços e os tempos. Selecione ao menos um porte.'
+        ? 'Confira a categoria, o nome, a descrição, os preços e os tempos. Selecione ao menos um porte.'
         : messageFor(error))
       await load()
     } finally {
       setSavingService(false)
+    }
+  }
+
+  async function submitCategory(event) {
+    event.preventDefault()
+    if (savingCategory || !categoryDraft) return
+    const name = categoryDraft.name.trim()
+    const description = categoryDraft.description.trim()
+    if (!name || name.length > 80 || description.length > 300) {
+      setCategoryError('Confira o nome da categoria e a descrição (até 300 caracteres).')
+      return
+    }
+    setSavingCategory(true)
+    setCategoryError('')
+    setCategoryNotice('')
+    try {
+      await saveServiceCategory(business.id, {
+        ...categoryDraft,
+        name,
+        description,
+        sort_order: state.categories.length,
+      })
+      setCategoryDraft(null)
+      setCategoryNotice('Categoria salva.')
+      await load()
+    } catch (error) {
+      setCategoryError(messageFor(error))
+    } finally {
+      setSavingCategory(false)
     }
   }
 
@@ -407,43 +462,103 @@ export default function ControlPage() {
         <ErrorNotice>{sizeError}</ErrorNotice>
       </section>
 
+      <section className="control-card stack" aria-labelledby="categories-title">
+        <div className="control-section-heading">
+          <div><span className="eyebrow">Organize seu catálogo</span><h2 id="categories-title">Categorias</h2></div>
+          <button className="btn btn-primary add-service-button" type="button" onClick={() => {
+            setCategoryDraft({ id: null, name: '', description: '' })
+            setCategoryError('')
+            setCategoryNotice('')
+          }}>Adicionar categoria</button>
+        </div>
+        <p className="muted">As categorias agrupam os serviços exibidos no link de agendamento.</p>
+        {categoryNotice && <Notice>{categoryNotice}</Notice>}
+        <ErrorNotice>{categoryError}</ErrorNotice>
+        <div className="category-admin-list">
+          {state.categories.map((category) => {
+            const count = state.services.filter((service) => service.category_id === category.id
+              && service.is_active && !service.archived_at).length
+            return (
+              <article className="category-admin-card" key={category.id}>
+                <div>
+                  <h3>{category.name}</h3>
+                  <p className="muted">{category.description || 'Sem descrição'}</p>
+                  <span className="small muted">{count} {count === 1 ? 'serviço ativo' : 'serviços ativos'}</span>
+                </div>
+                <button className="btn btn-quiet" type="button" onClick={() => {
+                  setCategoryDraft({ id: category.id, name: category.name, description: category.description })
+                  setCategoryError('')
+                  setCategoryNotice('')
+                }}>Editar categoria</button>
+              </article>
+            )
+          })}
+        </div>
+      </section>
+
       <section className="control-card stack" aria-labelledby="services-title">
         <div className="control-section-heading">
           <div><span className="eyebrow">O que você oferece</span><h2 id="services-title">Serviços para reserva</h2></div>
           <button className="btn btn-primary add-service-button" type="button" onClick={() => {
-            setDraft(newDraft(activeSizes)); setServiceError(''); setServiceNotice('')
+            setDraft(newDraft(activeSizes, state.categories)); setServiceError(''); setServiceNotice('')
           }}>Adicionar serviço</button>
         </div>
         {serviceNotice && <Notice>{serviceNotice}</Notice>}
         <ErrorNotice>{serviceError}</ErrorNotice>
         {state.services.length === 0 && <p className="muted">Nenhum serviço cadastrado ainda.</p>}
-        <div className="service-cards">
-          {state.services.map((service) => (
-            <article className="service-card" key={service.id} data-archived={Boolean(service.archived_at)}>
-              <div className="service-card-top">
-                <div><h3>{service.name}</h3><p className="muted">{service.description || 'Sem descrição'}</p></div>
-                {service.archived_at && <span className="booking-status">Arquivado</span>}
-              </div>
-              <ul className="service-option-summary">
-                {service.options.filter((option) => option.is_active).map((option) => {
-                  const size = state.sizes.find((item) => item.code === option.size)
-                  return <li key={option.id}><span>{size?.name ?? option.size}</span><span>{option.duration_minutes} min</span><strong>{formatBRL(option.price_cents)}</strong></li>
-                })}
-              </ul>
-              {!service.archived_at && <div className="service-card-actions">
-                <button className="btn btn-quiet" type="button" onClick={() => editService(service)}>Editar</button>
-                <button className="btn-text" type="button" onClick={() => {
-                  setConfirmError(''); setConfirmAction({ kind: 'service', id: service.id, name: service.name })
-                }}>Arquivar</button>
+        {groupServicesByCategory(state.categories, state.services).map((category) => (
+          <section className="service-category-group" key={category.id} aria-labelledby={`services-category-${category.id}`}>
+            <h3 id={`services-category-${category.id}`}>{category.name}</h3>
+            {category.services.length === 0
+              ? <p className="muted small">Nenhum serviço nesta categoria.</p>
+              : <div className="service-cards">
+                {category.services.map((service) => (
+                  <article className="service-card" key={service.id} data-archived={Boolean(service.archived_at)}>
+                    <div className="service-card-top">
+                      <div><h3>{service.name}</h3><p className="muted">{service.description || 'Sem descrição'}</p></div>
+                      {service.archived_at && <span className="booking-status">Arquivado</span>}
+                    </div>
+                    <ul className="service-option-summary">
+                      {service.options.filter((option) => option.is_active).map((option) => {
+                        const size = state.sizes.find((item) => item.code === option.size)
+                        return <li key={option.id}><span>{size?.name ?? option.size}</span><span>{option.duration_minutes} min</span><strong>{formatBRL(option.price_cents)}</strong></li>
+                      })}
+                    </ul>
+                    {!service.archived_at && <div className="service-card-actions">
+                      <button className="btn btn-quiet" type="button" onClick={() => editService(service)}>Editar</button>
+                      <button className="btn-text" type="button" onClick={() => {
+                        setConfirmError(''); setConfirmAction({ kind: 'service', id: service.id, name: service.name })
+                      }}>Arquivar</button>
+                    </div>}
+                  </article>
+                ))}
               </div>}
-            </article>
-          ))}
-        </div>
-        {draft && (
-          <form className="service-editor stack" onSubmit={submitService}>
+          </section>
+        ))}
+
+        <dialog
+          ref={serviceDialogRef}
+          className="control-editor-dialog"
+          aria-labelledby="service-editor-title"
+          onCancel={(event) => {
+            if (savingService) event.preventDefault()
+            else setDraft(null)
+          }}
+        >
+          {draft && <form className="service-editor stack" onSubmit={submitService}>
             <div className="control-section-heading">
-              <h3>{draft.id ? 'Editar serviço' : 'Novo serviço'}</h3>
-              <button className="btn-text" type="button" onClick={() => setDraft(null)}>Fechar</button>
+              <h2 id="service-editor-title">{draft.id ? 'Editar serviço' : 'Novo serviço'}</h2>
+              <button className="btn-text" type="button" onClick={() => setDraft(null)} disabled={savingService}>Fechar</button>
+            </div>
+            <div className="field"><label htmlFor="service-category">Categoria</label>
+              <select id="service-category" required value={draft.category_id}
+                onChange={(event) => setDraft((current) => ({ ...current, category_id: event.target.value }))}>
+                <option value="" disabled>Selecione uma categoria</option>
+                {state.categories.map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+              {state.categories.length === 0 && <span className="hint">Adicione uma categoria antes de cadastrar serviços.</span>}
             </div>
             <div className="field"><label htmlFor="service-name">Nome do serviço</label>
               <input id="service-name" type="text" maxLength={80} required value={draft.name}
@@ -471,12 +586,39 @@ export default function ControlPage() {
             </fieldset>
             <p className="hint">O tempo configurado é usado pelo banco para reservar o intervalo correto na agenda.</p>
             <ErrorNotice>{serviceError}</ErrorNotice>
-            <button className="btn btn-primary" type="submit" disabled={savingService}>
+            <button className="btn btn-primary" type="submit" disabled={savingService || state.categories.length === 0}>
               {savingService ? 'Salvando serviço…' : 'Salvar serviço'}
             </button>
-          </form>
-        )}
+          </form>}
+        </dialog>
       </section>
+
+      <dialog
+        ref={categoryDialogRef}
+        className="control-editor-dialog"
+        aria-labelledby="category-editor-title"
+        onCancel={(event) => {
+          if (savingCategory) event.preventDefault()
+          else setCategoryDraft(null)
+        }}
+      >
+        {categoryDraft && <form className="service-editor stack" onSubmit={submitCategory}>
+          <div className="control-section-heading">
+            <h2 id="category-editor-title">{categoryDraft.id ? 'Editar categoria' : 'Nova categoria'}</h2>
+            <button className="btn-text" type="button" onClick={() => setCategoryDraft(null)} disabled={savingCategory}>Fechar</button>
+          </div>
+          <div className="field"><label htmlFor="category-name">Nome da categoria</label>
+            <input id="category-name" type="text" maxLength={80} required value={categoryDraft.name}
+              onChange={(event) => setCategoryDraft((current) => ({ ...current, name: event.target.value }))} /></div>
+          <div className="field"><label htmlFor="category-description">Descrição</label>
+            <textarea id="category-description" maxLength={300} value={categoryDraft.description}
+              onChange={(event) => setCategoryDraft((current) => ({ ...current, description: event.target.value }))} /></div>
+          <ErrorNotice>{categoryError}</ErrorNotice>
+          <button className="btn btn-primary" type="submit" disabled={savingCategory}>
+            {savingCategory ? 'Salvando categoria…' : 'Salvar categoria'}
+          </button>
+        </form>}
+      </dialog>
 
       <ConfirmDialog
         open={Boolean(confirmAction)}

@@ -64,3 +64,7 @@ export function bookingDetails(booking, timezone) {
 export function canCancelBooking(status) {
   return status === 'confirmed'
 }
+
+export function canCompleteBooking(booking, now = Date.now()) {
+  return booking.status === 'confirmed' && Date.parse(booking.ends_at) <= now
+}
