@@ -1,0 +1,172 @@
+/* Tokens. --brand e --on-brand sao definidos em runtime pela cor do negocio. */
+:root {
+  --bg: #f4f6f5;
+  --surface: #ffffff;
+  --ink: #1b2a2f;
+  --muted: #5c6b70;
+  --line: #d5dddf;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --info-bg: #e8f0f2;
+  --brand: #2563eb;
+  --on-brand: #ffffff;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --font: ui-rounded, 'SF Pro Rounded', 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 1rem/1.5 var(--font);
+}
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 1.75rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.125rem; line-height: 1.3; font-weight: 700; }
+a { color: inherit; }
+img { max-width: 100%; display: block; }
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+/* Estrutura */
+.shell { min-height: 100dvh; display: flex; flex-direction: column; }
+.page { width: 100%; max-width: 480px; margin: 0 auto; padding: 20px 20px 28px; flex: 1; }
+.stack > * + * { margin-top: 20px; }
+.stack-sm > * + * { margin-top: 10px; }
+
+.site-header { background: var(--surface); border-bottom: 1px solid var(--line); }
+.site-header-inner {
+  max-width: 480px; margin: 0 auto; padding: 12px 20px;
+  display: flex; align-items: center; gap: 12px; text-decoration: none;
+}
+.logo, .logo-fallback { width: 40px; height: 40px; border-radius: 50%; flex: none; }
+.logo { object-fit: cover; background: var(--bg); }
+.logo-fallback {
+  display: grid; place-items: center; font-weight: 700;
+  background: var(--brand); color: var(--on-brand);
+}
+.site-name { font-weight: 700; }
+.site-footer { text-align: center; padding: 16px 20px 24px; }
+
+/* Botoes */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 48px; padding: 0 20px; width: 100%;
+  border-radius: var(--radius-sm); border: 2px solid transparent;
+  font: 700 1rem var(--font); text-decoration: none; cursor: pointer;
+}
+.btn-primary { background: var(--brand); color: var(--on-brand); }
+.btn-primary[disabled] { opacity: 0.45; cursor: not-allowed; }
+.btn-quiet { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-text {
+  background: none; border: 0; padding: 8px 0; min-height: 44px;
+  font: 600 0.9375rem var(--font); color: var(--ink); text-decoration: underline; cursor: pointer;
+}
+
+/* Barra de acao fixa no rodape (polegar) */
+.actions {
+  position: sticky; bottom: 0; margin: 24px -20px -28px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  background: var(--bg); border-top: 1px solid var(--line);
+}
+.actions .btn + .btn { margin-top: 8px; }
+
+/* Cardapio de servicos: linhas, nao cartoes */
+.menu { list-style: none; margin: 0; padding: 0; }
+.menu > li { padding: 16px 0; border-top: 1px solid var(--line); }
+.menu > li:first-child { border-top: 0; padding-top: 0; }
+.prices { list-style: none; margin: 8px 0 0; padding: 0; }
+.prices li { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; padding: 6px 0; }
+.prices strong { min-width: 5.5ch; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Passos */
+.stepper { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+.progress { display: flex; gap: 6px; margin-top: 4px; }
+.progress span { height: 4px; flex: 1; border-radius: 2px; background: var(--line); }
+.progress span[data-done='true'] { background: var(--ink); }
+
+.summary { border-left: 4px solid var(--brand); padding: 4px 0 4px 12px; }
+.summary p + p { margin-top: 2px; }
+
+/* Escolhas (radio) */
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { padding: 0; font-size: 1.125rem; font-weight: 700; margin-bottom: 12px; }
+.choice { position: relative; display: block; }
+.choice + .choice { margin-top: 8px; }
+.choice input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.choice-body {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center;
+  min-height: 56px; padding: 10px 14px;
+  background: var(--surface); border: 2px solid var(--line); border-radius: var(--radius-sm);
+}
+.choice input:checked + .choice-body {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+}
+.choice input:checked + .choice-body .choice-title::before { content: '\2713\00a0'; }
+.choice input:focus-visible + .choice-body { outline: 3px solid var(--ink); outline-offset: 2px; }
+.choice-title { font-weight: 700; }
+.choice-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+.group-label { font-size: 0.9375rem; font-weight: 700; margin: 18px 0 8px; }
+.group-label:first-of-type { margin-top: 0; }
+
+/* Dias */
+.days {
+  display: flex; gap: 8px; overflow-x: auto; padding: 2px 20px 10px; margin: 0 -20px;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+}
+.chip {
+  flex: none; scroll-snap-align: start; min-width: 60px; min-height: 72px; padding: 8px 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.25;
+  background: var(--surface); color: var(--ink); border: 2px solid var(--line); border-radius: var(--radius-sm);
+  font: 600 0.875rem var(--font); cursor: pointer;
+}
+.chip .day { font-size: 1.25rem; font-weight: 700; }
+.chip[aria-pressed='true'] { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+
+/* Horarios: o elemento de destaque da tela */
+.slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+.slot {
+  min-height: 52px; background: var(--surface); color: var(--ink);
+  border: 2px solid var(--line); border-radius: var(--radius-sm);
+  font: 700 1.125rem var(--font); font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.slot[aria-pressed='true'] { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+
+/* Formulario */
+.field label, .field .label { display: block; font-weight: 600; margin-bottom: 6px; }
+.field input[type='text'], .field input[type='tel'], .field textarea {
+  width: 100%; min-height: 48px; padding: 10px 12px; font: 400 1rem var(--font); color: var(--ink);
+  background: var(--surface); border: 2px solid var(--line); border-radius: var(--radius-sm);
+}
+.field textarea { min-height: 88px; resize: vertical; }
+.field input[aria-invalid='true'] { border-color: var(--danger); }
+.field-error { color: var(--danger); font-size: 0.875rem; margin-top: 4px; }
+.hint { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
+.consent { display: flex; gap: 12px; align-items: flex-start; }
+.consent input { width: 24px; height: 24px; margin: 2px 0 0; flex: none; accent-color: var(--ink); }
+
+/* Avisos */
+.notice { padding: 12px 14px; border-radius: var(--radius-sm); background: var(--info-bg); }
+.notice[data-tone='error'] { background: var(--danger-bg); color: var(--danger); font-weight: 600; }
+.status { padding: 40px 0; text-align: center; color: var(--muted); }
+
+/* Comprovante */
+.ticket { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.ticket-head { background: var(--brand); color: var(--on-brand); padding: 20px; }
+.ticket-body { padding: 20px; }
+.ticket-tear { border-top: 2px dashed var(--line); margin: 0 20px; }
+.ticket-time { font-size: 2.5rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.ticket dl { margin: 16px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; }
+.ticket dt { color: var(--muted); }
+.ticket dd { margin: 0; text-align: right; font-weight: 600; }
+.ref { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+h1[tabindex='-1']:focus { outline: none; }
