@@ -4,6 +4,8 @@ import ServicesPage from './features/public-booking/ServicesPage.jsx'
 import BookingPage from './features/public-booking/BookingPage.jsx'
 import ConfirmedPage from './features/public-booking/ConfirmedPage.jsx'
 import PrivacyPage from './features/public-booking/PrivacyPage.jsx'
+import LoginPage from './features/auth/LoginPage.jsx'
+import AdminAccessPage from './features/auth/AdminAccessPage.jsx'
 
 function Simple({ title, children }) {
   return (
@@ -18,8 +20,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Simple title="Agendamentos">Acesse o link enviado pelo seu estabelecimento para agendar.</Simple>} />
-      {/* PROXIMO PASSO (item 3): rotas /login e /admin/* entram AQUI, antes de "/:slug".
-          O React Router da prioridade a rotas estaticas; "admin" e "login" ja sao slugs reservados no banco. */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/admin/*" element={<AdminAccessPage />} />
       <Route path="/:slug" element={<PublicLayout />}>
         <Route index element={<ServicesPage />} />
         <Route path="agendar" element={<BookingPage />} />

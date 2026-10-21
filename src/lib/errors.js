@@ -11,6 +11,13 @@ export const ERROR_MESSAGES = {
   INVALID_TRANSITION: 'Essa mudança de status não é permitida.',
   INTERNAL_ERROR: 'Não foi possível concluir. Tente novamente em instantes.',
   NETWORK: 'Sem conexão com o serviço. Verifique sua internet e tente novamente.',
+  AUTH_INVALID_CREDENTIALS: 'E-mail ou senha incorretos. Confira os dados e tente novamente.',
+  AUTH_UNCONFIRMED: 'Confirme seu e-mail antes de entrar.',
+  AUTH_RATE_LIMIT: 'Muitas tentativas de acesso. Aguarde um pouco e tente novamente.',
+  AUTH_GENERIC: 'Não foi possível entrar. Tente novamente em instantes.',
+  AUTH_LOGOUT_FAILED: 'Não foi possível sair. Tente novamente.',
+  AUTH_CHECK_FAILED: 'Não foi possível verificar seu acesso. Tente novamente.',
+  AUTH_ACCESS_DENIED: 'Esta conta não está vinculada a um negócio autorizado.',
   UNKNOWN: 'Não foi possível concluir. Tente novamente em instantes.',
 }
 
@@ -25,4 +32,18 @@ export class ApiError extends Error {
 export function messageFor(err) {
   const code = err instanceof ApiError ? err.code : 'UNKNOWN'
   return ERROR_MESSAGES[code]
+}
+
+export function messageForAuthError(err) {
+  switch (err?.code) {
+    case 'invalid_credentials':
+      return ERROR_MESSAGES.AUTH_INVALID_CREDENTIALS
+    case 'email_not_confirmed':
+      return ERROR_MESSAGES.AUTH_UNCONFIRMED
+    case 'over_request_rate_limit':
+    case 'too_many_requests':
+      return ERROR_MESSAGES.AUTH_RATE_LIMIT
+    default:
+      return ERROR_MESSAGES.AUTH_GENERIC
+  }
 }

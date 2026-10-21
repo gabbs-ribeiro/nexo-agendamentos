@@ -136,7 +136,8 @@ legend { padding: 0; font-size: 1.125rem; font-weight: 700; margin-bottom: 12px;
 
 /* Formulario */
 .field label, .field .label { display: block; font-weight: 600; margin-bottom: 6px; }
-.field input[type='text'], .field input[type='tel'], .field textarea {
+.field input[type='text'], .field input[type='tel'], .field input[type='email'],
+.field input[type='password'], .field textarea {
   width: 100%; min-height: 48px; padding: 10px 12px; font: 400 1rem var(--font); color: var(--ink);
   background: var(--surface); border: 2px solid var(--line); border-radius: var(--radius-sm);
 }
@@ -162,6 +163,8 @@ legend { padding: 0; font-size: 1.125rem; font-weight: 700; margin-bottom: 12px;
 .ticket dt { color: var(--muted); }
 .ticket dd { margin: 0; text-align: right; font-weight: 600; }
 .ref { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+
+.auth-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
 
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 

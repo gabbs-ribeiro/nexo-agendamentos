@@ -37,7 +37,15 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (fluxo público de reserva)
-**Automático (Node, sem navegador):** `npm test` → 19 testes de lógica pura (formatação BRL, fuso do negócio, telefone, contraste, idempotência, reducer do fluxo, validação). Resultado esperado: `# pass 19`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 22 testes de lógica pura (formatação BRL, fuso do negócio, telefone, contraste, idempotência, reducer do fluxo, validação e mapeamento seguro de erros do Auth). Resultado esperado: `# pass 22`, `# fail 0`.
+
+**Login (manual no navegador, contra o DEV):**
+- [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
+- [ ] Credenciais inválidas mostram apenas mensagem amigável, sem texto bruto do Auth.
+- [ ] Usuário autenticado sem linha em `business_members` não acessa `/admin` e recebe aviso de falta de vínculo.
+- [ ] Usuário com vínculo `owner` vê que o acesso foi validado; o painel administrativo ainda não está implementado.
+- [ ] Acessar `/admin` sem sessão redireciona para `/login`; sair encerra a sessão.
+- [ ] Signup público permanece desativado; responsáveis são cadastrados manualmente pelo Supabase.
 
 **Manual no navegador, contra o DEV** (`npm run dev`, `.env.local` com a URL e a chave anon do DEV; negócio com ao menos 1 serviço e 1 porte):
 - [ ] `/<slug>` mostra nome, serviços, preços e duração; slug inexistente mostra "Página não encontrada".
