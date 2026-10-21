@@ -1,6 +1,6 @@
 # Testes e validação de segurança
 
-**Regra:** escrever política RLS não é validar segurança. Nada abaixo foi executado até agora. Só considere o banco pronto quando **todas** as linhas da tabela estiverem com resultado esperado, no projeto de **DEV**.
+**Regra:** escrever política RLS não é validar segurança. Os testes SQL 01–07 foram executados no projeto de DEV, conforme confirmação do responsável pelo projeto. A migration `20261021000001_booking_internal_notes.sql` e o novo teste 08 ainda precisam ser aplicados/executados; rode novamente 01–04 (incluindo a auditoria 04) após essa migration.
 
 ## Como rodar (SQL Editor do Supabase DEV, como `postgres`)
 1. Aplicar as migrations em ordem (`supabase/migrations/`). Em caso de erro, **pare e corrija a migration**; não improvise no painel.
@@ -9,13 +9,14 @@
 
 | # | Arquivo | O que prova | Esperado | Resultado |
 |---|---|---|---|---|
-| 01 | `tests/01_isolation_and_permissions.sql` | Negócio A não lê/altera/apaga/insere dados de B; usuário sem vínculo vê 0 linhas; `anon` sem acesso a tabelas nem a funções admin/internas; respostas públicas sem dados internos | só PASS | ☐ não executado |
-| 02 | `tests/02_booking_rules.sql` | Grade, duração real (45 min), gap, expediente, bloqueios, fuso, antecedência, inativos, idempotência, limite por telefone, constraints do banco | só PASS | ☐ não executado |
-| 03 | `tests/03_admin_functions.sql` | Criar/remarcar/status/editar/bloqueios como admin, mesmas regras de agenda | só PASS | ☐ não executado |
-| 04 | `tests/04_permission_audit.sql` | RLS ligada, grants mínimos, funções executáveis só por quem deve, `search_path` fixo, sem sobreposição de dados | **0 linhas** na 1ª consulta | ☐ não executado |
-| 05–07 | `tests/05…`, `concurrency_test.sh`, `06…`, `07…` | N requisições simultâneas reais pela API pública: 1 sucesso no mesmo horário, 1 sucesso entre horários conflitantes, idempotência concorrente | script termina com “todos os cenários passaram”; 06: 3 agendamentos, 0 sobreposições | ☐ não executado |
+| 01 | `tests/01_isolation_and_permissions.sql` | Negócio A não lê/altera/apaga/insere dados de B; usuário sem vínculo vê 0 linhas; `anon` sem acesso a tabelas nem a funções admin/internas; respostas públicas sem dados internos | só PASS | ✅ executado em DEV (confirmação do responsável); repetir após nova migration |
+| 02 | `tests/02_booking_rules.sql` | Grade, duração real (45 min), gap, expediente, bloqueios, fuso, antecedência, inativos, idempotência, limite por telefone, constraints do banco | só PASS | ✅ executado em DEV (confirmação do responsável) |
+| 03 | `tests/03_admin_functions.sql` | Criar/remarcar/status/editar/bloqueios como admin, mesmas regras de agenda; remarcação preserva gap snapshot | só PASS | ✅ executado antes da alteração; repetir após nova migration |
+| 04 | `tests/04_permission_audit.sql` | RLS ligada, grants mínimos, funções executáveis só por quem deve, `search_path` fixo, sem sobreposição de dados | **0 linhas** na 1ª consulta | ✅ executado antes da alteração; repetir após nova migration |
+| 05–07 | `tests/05…`, `concurrency_test.sh`, `06…`, `07…` | N requisições simultâneas reais pela API pública: 1 sucesso no mesmo horário, 1 sucesso entre horários conflitantes, idempotência concorrente | script termina com “todos os cenários passaram”; 06: 3 agendamentos, 0 sobreposições | ✅ executados em DEV (confirmação do responsável) |
+| 08 | `tests/08_booking_history_and_cancellation.sql` | Novas reservas usam configurações atuais; edição/arquivamento/remarcação preservam snapshots; notas internas e isolamento; cancelamento definitivo libera horário | só PASS | ☐ pendente: requer migration `20261021000001` |
 
-Repita **04** depois de qualquer migration nova e antes de qualquer uso real.
+Repita **04** depois de qualquer migration nova e antes de qualquer uso real. Para a migration nova, rode 01–04 e 08 no DEV.
 
 ## Concorrência: o que o script cobre e o que não cobre
 Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, mesma chave de idempotência) pela API real.
@@ -36,16 +37,21 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 ## Ainda não testado (fica para o front/piloto)
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
-## Front (fluxo público de reserva)
-**Automático (Node, sem navegador):** `npm test` → 22 testes de lógica pura (formatação BRL, fuso do negócio, telefone, contraste, idempotência, reducer do fluxo, validação e mapeamento seguro de erros do Auth). Resultado esperado: `# pass 22`, `# fail 0`.
+## Front (agendamento público e painel)
+**Automático (Node, sem navegador):** `npm test` → 25 testes de lógica (inclui apresentação com snapshots, cálculo de data no fuso do negócio e elegibilidade para cancelamento). Resultado esperado: `# pass 25`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
 - [ ] Credenciais inválidas mostram apenas mensagem amigável, sem texto bruto do Auth.
 - [ ] Usuário autenticado sem linha em `business_members` não acessa `/admin` e recebe aviso de falta de vínculo.
-- [ ] Usuário com vínculo `owner` vê que o acesso foi validado; o painel administrativo ainda não está implementado.
-- [ ] Acessar `/admin` sem sessão redireciona para `/login`; sair encerra a sessão.
+- [ ] Usuário com vínculo `owner` acessa Início, Calendário e detalhes de agendamentos; negócios diferentes permanecem isolados.
+- [ ] Acessar `/admin` sem sessão redireciona para `/login`; sair só encerra a sessão após confirmar no modal.
 - [ ] Signup público permanece desativado; responsáveis são cadastrados manualmente pelo Supabase.
+- [ ] Cancelar exige confirmação; “Voltar” e Escape fecham o modal sem alterar o status.
+- [ ] Ao confirmar o cancelamento, a linha histórica permanece, o status muda e o horário volta a ficar disponível.
+- [ ] A falha da RPC de cancelamento mantém o modal aberto, não mostra sucesso e apresenta mensagem amigável.
+- [ ] Detalhes mostram serviço, porte, duração, preço e horários registrados; edição das informações do tutor/pet não altera snapshots.
+- [ ] Anotações internas são salvas separadas das observações do tutor e só aparecem para membros do negócio.
 
 **Manual no navegador, contra o DEV** (`npm run dev`, `.env.local` com a URL e a chave anon do DEV; negócio com ao menos 1 serviço e 1 porte):
 - [ ] `/<slug>` mostra nome, serviços, preços e duração; slug inexistente mostra "Página não encontrada".

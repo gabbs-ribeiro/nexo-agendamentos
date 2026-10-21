@@ -51,6 +51,80 @@ export async function createPublicBooking({ slug, optionId, startsAt, form, idem
   return data
 }
 
+export async function listAdminBookings(businessId, start, end) {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, business_id, service_name, size, starts_at, ends_at, duration_minutes, buffer_minutes, price_cents, status, customer_name, customer_phone, pet_name, pet_breed, notes, internal_notes')
+    .eq('business_id', businessId)
+    .eq('status', 'confirmed')
+    .gte('starts_at', start)
+    .lt('starts_at', end)
+    .order('starts_at', { ascending: true })
+
+  if (error || !Array.isArray(data)) {
+    if (error) console.error('[bookings select]', error.code)
+    throw new ApiError('NETWORK')
+  }
+  return data
+}
+
+export async function getAdminBooking(businessId, bookingId) {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('id, business_id, service_name, size, starts_at, ends_at, duration_minutes, buffer_minutes, price_cents, status, customer_name, customer_phone, pet_name, pet_breed, notes, internal_notes')
+    .eq('business_id', businessId)
+    .eq('id', bookingId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[booking select]', error.code)
+    throw new ApiError('NETWORK')
+  }
+  return data
+}
+
+async function adminRpc(name, args) {
+  let result
+  try {
+    result = await supabase.rpc(name, args)
+  } catch {
+    throw new ApiError('NETWORK')
+  }
+  if (result.error) {
+    console.error(`[rpc ${name}]`, result.error.code)
+    throw new ApiError('NETWORK')
+  }
+  if (!result.data || result.data.ok !== true) {
+    throw new ApiError(result.data?.error ?? 'UNKNOWN')
+  }
+  return result.data
+}
+
+export function updateAdminBookingDetails(booking) {
+  return adminRpc('admin_update_booking_details', {
+    p_booking_id: booking.id,
+    p_customer_name: booking.customer_name,
+    p_customer_phone: booking.customer_phone,
+    p_pet_name: booking.pet_name,
+    p_pet_breed: booking.pet_breed || null,
+    p_notes: booking.notes || null,
+  })
+}
+
+export function updateAdminBookingInternalNotes(bookingId, notes) {
+  return adminRpc('admin_update_booking_internal_notes', {
+    p_booking_id: bookingId,
+    p_internal_notes: notes,
+  })
+}
+
+export function setAdminBookingStatus(bookingId, status) {
+  return adminRpc('admin_set_booking_status', {
+    p_booking_id: bookingId,
+    p_status: status,
+  })
+}
+
 export function logoUrl(path) {
   if (!path || !supabase) return null
   return supabase.storage.from('business-logos').getPublicUrl(path).data.publicUrl

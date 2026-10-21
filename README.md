@@ -2,13 +2,13 @@
 
 Sistema de agendamento multi-negócio. MVP: banho e tosa de pets. Stack: React + Vite, Supabase (Postgres + Auth), Vercel.
 
-> **Status:** banco escrito, **não executado nem validado**. Front: fluxo público de reserva escrito e verificado só em Node (sem build nem navegador); painel administrativo ainda não criado. Comece por `docs/HANDOFF_COPILOT.md` e `docs/TESTES.md`.
+> **Status atual:** migrations e testes SQL 01–07 foram executados em DEV, conforme confirmação do responsável; URL e chave pública anon estão na Vercel; usuário responsável foi criado manualmente no Supabase Auth. O front inclui agendamento público, login e uma primeira versão de Início/Calendário, detalhes e cancelamento de agendamentos. A nova migration de notas internas e os testes relacionados ainda precisam ser aplicados em DEV; demais telas administrativas também estão pendentes.
 
 ## Estrutura
 ```
-src/                   # front React (fluxo público de reserva; painel admin ainda nao)
-tests-front/           # testes Node da logica pura  (npm test)
-supabase/migrations/   # SQL versionado (aplicar em ordem)
+src/                   # front React (agendamento público, login e primeira versão de agenda admin)
+tests-front/           # testes Node do front (npm test)
+supabase/migrations/   # SQL versionado (migrations novas precisam ser aplicadas em DEV)
 supabase/tests/        # testes de isolamento, regras, admin, auditoria e concorrência
 supabase/seed/         # provisionamento manual de negócio (modelo, sem dados reais)
 docs/                  # HANDOFF_COPILOT.md, TESTES.md
@@ -16,13 +16,16 @@ docs/                  # HANDOFF_COPILOT.md, TESTES.md
 .env.example
 ```
 
-## Banco: ordem de execução (projeto de DEV primeiro)
-1. Migrations `20261020000001` … `20261020000007` (SQL Editor, ou `supabase db push` se usar o CLI).
-2. Testes `01` → `04` (ver `docs/TESTES.md`), depois `05` + `concurrency_test.sh` + `06` + `07`.
-3. Só então produção: criar usuário no Auth (signup desligado) e rodar `supabase/seed/provision_business.sql` preenchido.
+## Supabase: estado e configuração
+- As migrations até `20261020000007` e os testes SQL 01–07 já foram executados, conforme confirmação do responsável pelo projeto. A migration `20261021000001_booking_internal_notes.sql` e o teste SQL 08 são novos e ainda precisam ser aplicados/executados no DEV. Consulte `docs/TESTES.md` para os passos.
+- O usuário responsável já foi criado manualmente no Supabase Auth; não há cadastro público no aplicativo.
+- A URL do projeto e a chave pública anon já foram configuradas nas variáveis de ambiente da Vercel. Nunca configure `service_role` ou `sb_secret_...` no frontend ou em variáveis `VITE_*`.
+- O login está disponível em `/login`. Para liberar o acesso administrativo, a conta também precisa ter vínculo com o negócio em `business_members` (papel `owner`). A interface confere sessão e vínculo; autenticar sozinho não concede acesso.
+- O painel inicial lista os agendamentos confirmados por dia; Calendário e Início abrem a tela detalhada. Detalhes usam snapshots do agendamento, oferecem edição de dados permitidos, notas internas e cancelamento com confirmação. Serviços e outras telas administrativas ainda não estão implementados.
+- Os detalhes internos da configuração e as pendências de validação estão em `docs/HANDOFF_COPILOT.md` e `docs/TESTES.md`.
 
 ## Front: rodar localmente
-`cp .env.example .env.local` (preencher com URL e chave **anon** do projeto de DEV) → `npm install` → `npm run dev`. Testes: `npm test`. Páginas: `/<slug>` (cliente). A chave `service_role` nunca entra aqui.
+`cp .env.example .env.local` (preencher com URL e chave **anon** do projeto de DEV) → `npm install` → `npm run dev`. Testes do front: `npm test` (25 testes). Build: `npm run build`. Páginas: `/<slug>` (cliente), `/login` e `/admin` (responsável). O painel administrativo completo ainda precisa ser desenvolvido. A chave `service_role` nunca entra no frontend.
 
 ## Backup manual mensal (decisão D15)
 O plano gratuito não deve ser tratado como garantia de backup. Uma vez por mês (e antes de qualquer migration em produção):
