@@ -37,7 +37,7 @@ export default function ConfirmedPage() {
         <div className="ticket-body">
           <dl>
             <dt>Serviço</dt><dd>{booking.service_name}</dd>
-            <dt>Porte</dt><dd>{SIZE_LABELS[booking.size] ?? booking.size}</dd>
+            <dt>Porte</dt><dd>{booking.size_label || SIZE_LABELS[booking.size] || booking.size}</dd>
             <dt>Duração</dt><dd>{formatDuration(minutes)}</dd>
             <dt>Valor</dt><dd>{formatBRL(booking.price_cents)}</dd>
             <dt>Código</dt><dd className="ref">{String(booking.booking_ref).slice(0, 8).toUpperCase()}</dd>

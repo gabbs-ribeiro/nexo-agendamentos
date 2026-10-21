@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase.js'
 import AgendaPage from './AgendaPage.jsx'
 import { AdminBusinessProvider } from './AdminBusinessContext.jsx'
 import BookingDetailsPage from './BookingDetailsPage.jsx'
+import ControlPage from './ControlPage.jsx'
 
 export default function AdminWorkspace({ businesses }) {
   const navigate = useNavigate()
@@ -54,11 +55,13 @@ export default function AdminWorkspace({ businesses }) {
         <nav className="admin-nav" aria-label="Navegação administrativa">
           <NavLink to="/admin" end>Início</NavLink>
           <NavLink to="/admin/calendario">Calendário</NavLink>
+          <NavLink to="/admin/controle">Controle</NavLink>
         </nav>
         <main className="admin-content">
           <Routes>
             <Route index element={<AgendaPage view="home" />} />
             <Route path="calendario" element={<AgendaPage view="calendar" />} />
+            <Route path="controle" element={<ControlPage />} />
             <Route path="agendamentos/:bookingId" element={<BookingDetailsPage />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>

@@ -54,7 +54,7 @@ export async function createPublicBooking({ slug, optionId, startsAt, form, idem
 export async function listAdminBookings(businessId, start, end) {
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, business_id, service_name, size, starts_at, ends_at, duration_minutes, buffer_minutes, price_cents, status, customer_name, customer_phone, pet_name, pet_breed, notes, internal_notes')
+    .select('id, business_id, service_name, size, size_label, starts_at, ends_at, duration_minutes, buffer_minutes, price_cents, status, customer_name, customer_phone, pet_name, pet_breed, notes, internal_notes')
     .eq('business_id', businessId)
     .eq('status', 'confirmed')
     .gte('starts_at', start)
@@ -71,7 +71,7 @@ export async function listAdminBookings(businessId, start, end) {
 export async function getAdminBooking(businessId, bookingId) {
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, business_id, service_name, size, starts_at, ends_at, duration_minutes, buffer_minutes, price_cents, status, customer_name, customer_phone, pet_name, pet_breed, notes, internal_notes')
+    .select('id, business_id, service_name, size, size_label, starts_at, ends_at, duration_minutes, buffer_minutes, price_cents, status, customer_name, customer_phone, pet_name, pet_breed, notes, internal_notes')
     .eq('business_id', businessId)
     .eq('id', bookingId)
     .maybeSingle()
@@ -128,4 +128,161 @@ export function setAdminBookingStatus(bookingId, status) {
 export function logoUrl(path) {
   if (!path || !supabase) return null
   return supabase.storage.from('business-logos').getPublicUrl(path).data.publicUrl
+}
+
+function throwIfApiError(error, operation) {
+  if (!error) return
+  console.error(`[${operation}]`, error.code)
+  if (error.code === '23505') throw new ApiError('DUPLICATE_NAME')
+  throw new ApiError('NETWORK')
+}
+
+export async function getBusinessControl(businessId) {
+  const { data, error } = await supabase
+    .from('businesses')
+    .select('id, name, logo_path, primary_color')
+    .eq('id', businessId)
+    .single()
+  throwIfApiError(error, 'business control select')
+  return data
+}
+
+export async function listBusinessCatalog(businessId) {
+  const [sizesResult, servicesResult, optionsResult] = await Promise.all([
+    supabase.from('business_sizes')
+      .select('business_id, code, name, sort_order, is_active')
+      .eq('business_id', businessId)
+      .order('sort_order')
+      .order('name'),
+    supabase.from('services')
+      .select('id, business_id, name, description, is_active, archived_at')
+      .eq('business_id', businessId)
+      .order('name'),
+    supabase.from('service_options')
+      .select('id, business_id, service_id, size, price_cents, duration_minutes, is_active')
+      .eq('business_id', businessId),
+  ])
+  throwIfApiError(sizesResult.error, 'business sizes select')
+  throwIfApiError(servicesResult.error, 'services select')
+  throwIfApiError(optionsResult.error, 'service options select')
+  return {
+    sizes: sizesResult.data ?? [],
+    services: (servicesResult.data ?? []).map((service) => ({
+      ...service,
+      options: (optionsResult.data ?? []).filter((option) => option.service_id === service.id),
+    })),
+  }
+}
+
+export async function updateBusinessProfile(businessId, profile) {
+  const { data, error } = await supabase
+    .from('businesses')
+    .update({ name: profile.name, logo_path: profile.logo_path, primary_color: profile.primary_color })
+    .eq('id', businessId)
+    .select('id')
+    .maybeSingle()
+  throwIfApiError(error, 'business profile update')
+  if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
+}
+
+export async function uploadBusinessLogo(businessId, file) {
+  const extension = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[file.type]
+  if (!extension || file.size === 0 || file.size > 1024 * 1024) throw new ApiError('INVALID_PROFILE_IMAGE')
+  const path = `${businessId}/${globalThis.crypto.randomUUID()}.${extension}`
+  const { error } = await supabase.storage.from('business-logos').upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  })
+  if (error) {
+    console.error('[business logo upload]', error.statusCode)
+    throw new ApiError('LOGO_UPLOAD_FAILED')
+  }
+  return path
+}
+
+export async function removeBusinessLogo(path) {
+  if (!path) return
+  const { error } = await supabase.storage.from('business-logos').remove([path])
+  throwIfApiError(error, 'business logo removal')
+}
+
+export async function saveBusinessSize(businessId, size) {
+  const query = supabase.from('business_sizes')
+  const result = size.code
+    ? await query.update({ name: size.name }).eq('business_id', businessId).eq('code', size.code).select('code').maybeSingle()
+    : await query.insert({
+      business_id: businessId,
+      code: size.newCode,
+      name: size.name,
+      sort_order: size.sort_order,
+    }).select('code').single()
+  throwIfApiError(result.error, 'business size save')
+  if (!result.data) throw new ApiError('AUTH_ACCESS_DENIED')
+}
+
+export async function setBusinessSizeActive(businessId, code, isActive) {
+  const { data, error } = await supabase.from('business_sizes')
+    .update({ is_active: isActive })
+    .eq('business_id', businessId)
+    .eq('code', code)
+    .select('code')
+    .maybeSingle()
+  throwIfApiError(error, 'business size status')
+  if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
+}
+
+export async function saveService(businessId, service, options) {
+  const serviceResult = service.id
+    ? await supabase.from('services')
+      .update({ name: service.name, description: service.description })
+      .eq('business_id', businessId)
+      .eq('id', service.id)
+      .select('id')
+      .maybeSingle()
+    : await supabase.from('services')
+      .insert({ business_id: businessId, name: service.name, description: service.description, is_active: true })
+      .select('id')
+      .single()
+  throwIfApiError(serviceResult.error, 'service save')
+  const serviceId = serviceResult.data?.id
+  if (!serviceId) throw new ApiError('AUTH_ACCESS_DENIED')
+
+  for (const option of options) {
+    if (!option.id && !option.is_active) continue
+    const result = option.id
+      ? await supabase.from('service_options')
+        .update({
+          price_cents: option.price_cents,
+          duration_minutes: option.duration_minutes,
+          is_active: option.is_active,
+        })
+        .eq('business_id', businessId)
+        .eq('id', option.id)
+        .select('id')
+        .maybeSingle()
+      : await supabase.from('service_options')
+        .insert({
+          business_id: businessId,
+          service_id: serviceId,
+          size: option.size,
+          price_cents: option.price_cents,
+          duration_minutes: option.duration_minutes,
+          is_active: option.is_active,
+        })
+        .select('id')
+        .single()
+    throwIfApiError(result.error, 'service option save')
+    if (!result.data) throw new ApiError('AUTH_ACCESS_DENIED')
+  }
+}
+
+export async function archiveService(businessId, serviceId) {
+  const { data, error } = await supabase.from('services')
+    .update({ is_active: false, archived_at: new Date().toISOString() })
+    .eq('business_id', businessId)
+    .eq('id', serviceId)
+    .select('id')
+    .maybeSingle()
+  throwIfApiError(error, 'service archive')
+  if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
 }

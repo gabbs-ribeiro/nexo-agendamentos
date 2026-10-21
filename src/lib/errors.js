@@ -18,6 +18,9 @@ export const ERROR_MESSAGES = {
   AUTH_LOGOUT_FAILED: 'Não foi possível sair. Tente novamente.',
   AUTH_CHECK_FAILED: 'Não foi possível verificar seu acesso. Tente novamente.',
   AUTH_ACCESS_DENIED: 'Esta conta não está vinculada a um negócio autorizado.',
+  INVALID_PROFILE_IMAGE: 'Escolha uma imagem PNG, JPG ou WEBP de até 1 MB.',
+  LOGO_UPLOAD_FAILED: 'Não foi possível enviar a foto. Confira o arquivo e tente novamente.',
+  DUPLICATE_NAME: 'Já existe um item com esse nome. Escolha outro nome.',
   UNKNOWN: 'Não foi possível concluir. Tente novamente em instantes.',
 }
 

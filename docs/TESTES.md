@@ -1,6 +1,6 @@
 # Testes e validação de segurança
 
-**Regra:** escrever política RLS não é validar segurança. Os testes SQL 01–07 foram executados no projeto de DEV, conforme confirmação do responsável pelo projeto. A migration `20261021000001_booking_internal_notes.sql` e o novo teste 08 ainda precisam ser aplicados/executados; rode novamente 01–04 (incluindo a auditoria 04) após essa migration.
+**Regra:** escrever política RLS não é validar segurança. O responsável informa que as migrations até `20261021000002_admin_control_catalog.sql` foram executadas em DEV. A função instalada `get_public_business` não retorna a chave `contact_phone`; aplique a migration corretiva `20261021000003_restore_public_business_contact.sql` em DEV antes de repetir os testes. A primeira consulta do teste 04 ainda precisa retornar zero linhas.
 
 ## Como rodar (SQL Editor do Supabase DEV, como `postgres`)
 1. Aplicar as migrations em ordem (`supabase/migrations/`). Em caso de erro, **pare e corrija a migration**; não improvise no painel.
@@ -9,14 +9,15 @@
 
 | # | Arquivo | O que prova | Esperado | Resultado |
 |---|---|---|---|---|
-| 01 | `tests/01_isolation_and_permissions.sql` | Negócio A não lê/altera/apaga/insere dados de B; usuário sem vínculo vê 0 linhas; `anon` sem acesso a tabelas nem a funções admin/internas; respostas públicas sem dados internos | só PASS | ✅ executado em DEV (confirmação do responsável); repetir após nova migration |
+| 01 | `tests/01_isolation_and_permissions.sql` | Negócio A não lê/altera/apaga/insere dados de B; usuário sem vínculo vê 0 linhas; `anon` sem acesso a tabelas nem a funções admin/internas; respostas públicas sem dados internos | só PASS | ❌ falhou: resposta sem `contact_phone`; migration corretiva criada, pendente de aplicação e nova execução |
 | 02 | `tests/02_booking_rules.sql` | Grade, duração real (45 min), gap, expediente, bloqueios, fuso, antecedência, inativos, idempotência, limite por telefone, constraints do banco | só PASS | ✅ executado em DEV (confirmação do responsável) |
-| 03 | `tests/03_admin_functions.sql` | Criar/remarcar/status/editar/bloqueios como admin, mesmas regras de agenda; remarcação preserva gap snapshot | só PASS | ✅ executado antes da alteração; repetir após nova migration |
-| 04 | `tests/04_permission_audit.sql` | RLS ligada, grants mínimos, funções executáveis só por quem deve, `search_path` fixo, sem sobreposição de dados | **0 linhas** na 1ª consulta | ✅ executado antes da alteração; repetir após nova migration |
+| 03 | `tests/03_admin_functions.sql` | Criar/remarcar/status/editar/bloqueios como admin, mesmas regras de agenda; remarcação preserva gap snapshot | só PASS | ✅ responsável relata execução sem erro após migration 01; repetir após 02 |
+| 04 | `tests/04_permission_audit.sql` | RLS ligada, grants mínimos, funções executáveis só por quem deve, `search_path` fixo, sem sobreposição de dados | **0 linhas** na 1ª consulta | ⚠️ executado; confirmar que a primeira consulta retornou 0 linhas |
 | 05–07 | `tests/05…`, `concurrency_test.sh`, `06…`, `07…` | N requisições simultâneas reais pela API pública: 1 sucesso no mesmo horário, 1 sucesso entre horários conflitantes, idempotência concorrente | script termina com “todos os cenários passaram”; 06: 3 agendamentos, 0 sobreposições | ✅ executados em DEV (confirmação do responsável) |
-| 08 | `tests/08_booking_history_and_cancellation.sql` | Novas reservas usam configurações atuais; edição/arquivamento/remarcação preservam snapshots; notas internas e isolamento; cancelamento definitivo libera horário | só PASS | ☐ pendente: requer migration `20261021000001` |
+| 08 | `tests/08_booking_history_and_cancellation.sql` | Novas reservas usam configurações atuais; edição/arquivamento/remarcação preservam snapshots; notas internas e isolamento; cancelamento definitivo libera horário | só PASS | ✅ responsável relata execução sem erro após migration 01; repetir após 02 |
+| 09 | `tests/09_business_control_catalog.sql` | Perfil, serviço com descrição, porte customizado, preço/duração por opção, disponibilidade e snapshot do rótulo | só PASS | ☐ executar/repetir após aplicar a migration corretiva 03 |
 
-Repita **04** depois de qualquer migration nova e antes de qualquer uso real. Para a migration nova, rode 01–04 e 08 no DEV.
+Em DEV, aplique `20261021000003_restore_public_business_contact.sql` e rode 01–04 e 08–09. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não aplique correções em produção antes da validação.
 
 ## Concorrência: o que o script cobre e o que não cobre
 Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, mesma chave de idempotência) pela API real.
@@ -38,7 +39,7 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 25 testes de lógica (inclui apresentação com snapshots, cálculo de data no fuso do negócio e elegibilidade para cancelamento). Resultado esperado: `# pass 25`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 28 testes, incluindo apresentação histórica, validação de preços/portes e fusos. Última execução: `# pass 28`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -52,6 +53,9 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] A falha da RPC de cancelamento mantém o modal aberto, não mostra sucesso e apresenta mensagem amigável.
 - [ ] Detalhes mostram serviço, porte, duração, preço e horários registrados; edição das informações do tutor/pet não altera snapshots.
 - [ ] Anotações internas são salvas separadas das observações do tutor e só aparecem para membros do negócio.
+- [ ] A aba Controle altera nome/foto/cor públicos; o perfil atualizado aparece na rota `/<slug>`.
+- [ ] Serviços exibem a descrição no fluxo público; porte, preço e duração configurados alimentam as novas reservas.
+- [ ] Renomear ou desativar um porte não altera rótulos e snapshots de agendamentos existentes; porte desativado deixa de oferecer novos horários.
 
 **Manual no navegador, contra o DEV** (`npm run dev`, `.env.local` com a URL e a chave anon do DEV; negócio com ao menos 1 serviço e 1 porte):
 - [ ] `/<slug>` mostra nome, serviços, preços e duração; slug inexistente mostra "Página não encontrada".

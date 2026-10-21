@@ -39,3 +39,7 @@ test('apenas agendamentos confirmados podem ser cancelados', () => {
   assert.equal(canCancelBooking('completed'), false)
   assert.equal(canCancelBooking('no_show'), false)
 })
+
+test('porte personalizado usa snapshot do agendamento em vez do nome atual no catalogo', () => {
+  assert.equal(bookingDetails({ ...booking, size: 'extra-grande-abc123', size_label: 'Gigante' }, 'America/Sao_Paulo').size, 'Gigante')
+})
