@@ -122,6 +122,7 @@ legend { padding: 0; font-size: 1.125rem; font-weight: 700; margin-bottom: 12px;
   display: flex; gap: 8px; overflow-x: auto; padding: 2px 20px 10px; margin: 0 -20px;
   scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
 }
+.days.booking-days { margin-top: 30px; }
 .chip {
   flex: none; scroll-snap-align: start; min-width: 60px; min-height: 72px; padding: 8px 6px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.25;
@@ -291,6 +292,13 @@ button, input, textarea, select { accent-color: var(--accent); }
 .control-form { display: grid; gap: 18px; }
 .control-color-field input[type='color'] { width: 70px; height: 48px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .control-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 15px; color: #9b5539; background: #fff0e5; font-size: 1.5rem; font-weight: 800; }
+.business-hours-day { min-width: 0; display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #fffaf4; }
+.business-hours-day legend { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 0 0 4px; font-weight: 800; }
+.business-hours-interval { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: end; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.field .business-hours-midnight { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: .82rem; }
+.field .business-hours-midnight input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--accent); }
+.business-hours-remove { align-self: end; padding: 8px 0; }
+.business-hours-add { width: fit-content; }
 .size-list, .service-cards { display: grid; gap: 12px; }
 .size-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; }
 .size-save { width: auto; min-height: 42px; padding-inline: 16px; }
@@ -360,6 +368,11 @@ button, input, textarea, select { accent-color: var(--accent); }
   .add-size-form .btn { width: 100%; }
   .control-section-heading { align-items: flex-start; }
   .add-service-button { width: auto; padding-inline: 14px; font-size: .85rem; }
+  .business-hours-day { padding: 12px; }
+  .business-hours-interval { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .business-hours-remove { grid-column: 1 / -1; justify-self: end; }
+  .business-hours-add, .calendar-day-controls .btn { width: 100%; }
+  .calendar-day-controls { grid-template-columns: minmax(0, 1fr); padding: 14px; }
 }
 
 /* Agenda e identidade do estabelecimento */
@@ -454,6 +467,9 @@ button, input, textarea, select { accent-color: var(--accent); }
 .calendar-add-button:hover { transform: translateY(-2px); }
 .calendar-date-picker { padding: 18px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); }
 .calendar-date-field { max-width: 320px; }
+.calendar-day-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 20px; padding: 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+.calendar-day-controls .muted { margin-top: 5px; }
+.calendar-day-controls .notice { grid-column: 1 / -1; }
 .calendar-days { margin-inline: -18px; }
 .calendar-day { min-width: 54px; min-height: 66px; }
 .calendar-day .day { font-size: 1.15rem; }
@@ -611,7 +627,7 @@ button, input, textarea, select { accent-color: var(--accent); }
     border-radius: 18px;
   }
   .manual-booking-actions { grid-template-columns: 1fr; }
-  .days.booking-days { gap: 6px; padding-inline: 16px; margin: 18px -16px 0; }
+  .days.booking-days { gap: 6px; padding-inline: 16px; margin: 30px -16px 0; }
   .booking-days .chip { min-width: 50px; min-height: 60px; padding: 6px 4px; font-size: .78rem; }
   .booking-days .chip .day { font-size: 1.1rem; }
   .public-service-heading { flex-direction: column; }

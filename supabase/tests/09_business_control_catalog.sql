@@ -1,5 +1,5 @@
 -- TESTE 09 — perfil do negocio, servicos com descricao e portes configuraveis.
--- Rodar SOMENTE em DEV apos 20261021000004_service_categories.sql.
+-- Rodar SOMENTE em DEV apos migrations 02, 04, 06, 07 e 08.
 -- Transacao com ROLLBACK; esperado: PASS e nenhuma excecao.
 begin;
 
@@ -51,7 +51,8 @@ begin
     'Ana Costa', '41999990001', 'Rex');
   assert (v_result->>'ok')::boolean, 'agendamento para porte customizado falhou: ' || v_result::text;
   v_booking := (v_result->>'booking_ref')::uuid;
-  assert v_result->>'size_label' = 'Extra grande', 'reserva nao devolveu o rotulo do porte';
+  assert v_result->>'size_label' = 'Extra grande',
+    'reserva nao devolveu o rotulo do porte: ' || v_result::text;
   assert v_result->>'price_cents' = '15500', 'preco customizado nao foi registrado';
   assert v_result->>'ends_at' is not null, 'reserva nao devolveu horario final';
 
@@ -67,10 +68,20 @@ begin
 
   select count(*) into v_count
     from jsonb_array_elements(public.list_public_services('loja-catalogo')) svc
-    cross join lateral jsonb_array_elements(svc->'options') opt
    where svc->>'description' = 'Banho para pets de porte extra grande'
+     and svc->>'name' = 'Banho especial';
+  assert v_count = 1,
+    'catalogo publico nao exibiu a descricao do servico: '
+      || public.list_public_services('loja-catalogo')::text;
+
+  select count(*) into v_count
+    from jsonb_array_elements(public.list_public_services('loja-catalogo')) svc
+    cross join lateral jsonb_array_elements(svc->'options') opt
+   where svc->>'name' = 'Banho especial'
      and opt->>'size_label' = 'Gigante';
-  assert v_count = 1, 'catalogo publico nao exibiu descricao ou rotulo atualizado';
+  assert v_count = 1,
+    'catalogo publico nao exibiu o rotulo atualizado do porte: '
+      || public.list_public_services('loja-catalogo')::text;
 
   v_result := public.list_public_service_categories('loja-catalogo');
   select count(*) into v_count
@@ -107,6 +118,12 @@ begin
   select count(*) into v_count from public.get_available_slots(
     'loja-catalogo', v_option, v_date);
   assert v_count = 0, 'porte desativado continuou disponivel para novas reservas';
+  v_result := public.admin_create_booking(
+    c_biz, v_option, (v_date + time '10:00') at time zone 'America/Sao_Paulo',
+    'Ana Costa', '41999990001', 'Rex');
+  assert not coalesce((v_result->>'ok')::boolean, false)
+     and v_result->>'error' = 'SERVICE_UNAVAILABLE',
+    'porte desativado aceitou nova reserva: ' || v_result::text;
 
   update public.businesses set name = 'Loja Atualizada', logo_path = c_biz::text || '/logo.png'
    where id = c_biz;

@@ -1,6 +1,6 @@
 # Testes e validação de segurança
 
-**Regra:** escrever política RLS não é validar segurança. O responsável informa que as migrations anteriores foram executadas em DEV e compartilhou uma atualização de `get_public_business` para incluir `contact_phone`; confirme o resultado final do teste 01. A migration `20261021000004_service_categories.sql` é nova, ainda precisa ser aplicada manualmente em DEV e deve ser seguida pelos testes 01, 04 e 09. A primeira consulta do teste 04 deve retornar zero linhas.
+**Regra:** escrever política RLS não é validar segurança. O responsável informa que as migrations são executadas manualmente em DEV e compartilhou uma atualização de `get_public_business` para incluir `contact_phone`; confirme o resultado final do teste 01. O responsável aplicou as migrations 06 e 07; o teste 09 agora falha porque `get_available_slots` ainda oferece horários para porte desativado. Aplique `20261021000008_restore_active_size_slot_filter.sql` somente no DEV e repita 09 e 04. As migrations 04 e 05 também precisam ser conferidas/aplicadas conforme o schema instalado, e rode 01 e 10. A primeira consulta do teste 04 deve retornar zero linhas.
 
 ## Como rodar (SQL Editor do Supabase DEV, como `postgres`)
 1. Aplicar as migrations em ordem (`supabase/migrations/`). Em caso de erro, **pare e corrija a migration**; não improvise no painel.
@@ -15,9 +15,10 @@
 | 04 | `tests/04_permission_audit.sql` | RLS ligada, grants mínimos, funções executáveis só por quem deve, `search_path` fixo, sem sobreposição de dados | **0 linhas** na 1ª consulta | ⚠️ executado; confirmar que a primeira consulta retornou 0 linhas |
 | 05–07 | `tests/05…`, `concurrency_test.sh`, `06…`, `07…` | N requisições simultâneas reais pela API pública: 1 sucesso no mesmo horário, 1 sucesso entre horários conflitantes, idempotência concorrente | script termina com “todos os cenários passaram”; 06: 3 agendamentos, 0 sobreposições | ✅ executados em DEV (confirmação do responsável) |
 | 08 | `tests/08_booking_history_and_cancellation.sql` | Novas reservas usam configurações atuais; edição/arquivamento/remarcação preservam snapshots; notas internas e isolamento; cancelamento definitivo libera horário | só PASS | ✅ responsável relata execução sem erro após migration 01; repetir após 02 |
-| 09 | `tests/09_business_control_catalog.sql` | Perfil, categorias, associação e edição, serviço com descrição, porte customizado, preço/duração por opção, disponibilidade e snapshot do rótulo | só PASS | ☐ executar após aplicar a migration de categorias 04 |
+| 09 | `tests/09_business_control_catalog.sql` | Perfil, categorias, associação e edição, serviço com descrição, porte customizado, preço/duração por opção, disponibilidade e snapshot do rótulo; porte desativado não oferece horários nem aceita reserva | só PASS | ⚠️ migrations 06 e 07 aplicadas; falha atual: porte desativado ainda aparece em `get_available_slots`; aplicar migration corretiva 08 e repetir |
+| 10 | `tests/10_business_hours_and_day_off.sql` | Múltiplos períodos por dia, atualização atômica (mantém horários anteriores ao rejeitar sobreposição), conflito de folga com agendamento e bloqueio no fuso do negócio | só PASS | ☐ executar após aplicar a migration 05 |
 
-Em DEV, aplique `20261021000004_service_categories.sql` e rode 01, 04 e 09. Se o teste 01 ainda não passou após a correção de `contact_phone`, repita também 01–04 e 08–09. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não aplique correções em produção antes da validação.
+No DEV, o responsável confirmou que as migrations 06 e 07 foram aplicadas e executou o teste 09. As verificações de catálogo avançaram; a falha atual indica que `get_available_slots` não filtrou o porte desativado. A migration `20261021000008_restore_active_size_slot_filter.sql` restaura esse filtro; aplique-a somente no DEV e rode novamente o teste 09, que verifica também a rejeição da reserva para a opção inativa. O schema `supabase_migrations.schema_migrations` não existe porque o projeto foi atualizado manualmente pelo SQL Editor; isso não informa quais scripts já foram executados. Confira o estado antes de reaplicar migrations. A migration 05 requer a 04; aplique/valide pendências e rode também 01, 04 e 10. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não reaplique migrations não idempotentes sem conferir o schema.
 
 ## Concorrência: o que o script cobre e o que não cobre
 Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, mesma chave de idempotência) pela API real.
@@ -39,7 +40,7 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 35 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria e elegibilidade para concluir. Última execução nesta entrega: `# pass 35`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 38 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente e elegibilidade para concluir. Última execução nesta entrega: `# pass 38`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -61,6 +62,8 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Cabeçalho do painel e da página pública mostram a logo e o nome atualizados do estabelecimento; “Nexo Agendamentos” só aparece em tamanho pequeno no rodapé.
 - [ ] Início mostra os compromissos de hoje, texto de agenda vazia e anotações internas em destaque; o link público pode ser copiado e compartilhado.
 - [ ] Calendário permite escolher dia, consulta horários pelo banco e cria agendamento manual com serviço, porte, data/horário, dados do tutor/pet e observações via RPC; anotação interna é salva pela RPC separada.
+- [ ] Controle carrega expediente do banco, permite deixar dias sem expediente e salvar múltiplos intervalos por dia (incluindo fechamento à meia-noite); faixas sobrepostas/inválidas são recusadas sem apagar a configuração atual.
+- [ ] Calendário marca e remove folga para o dia inteiro no fuso do estabelecimento; com agendamentos confirmados, orienta cancelá-los antes; uma tentativa concorrente também é rejeitada pelo banco com mensagem compreensível.
 - [ ] Em caso de falha de rede ao criar agendamento manual, a interface avisa para conferir a agenda antes de repetir; falha ao salvar nota não simula sucesso e aponta os detalhes do agendamento.
 - [ ] Serviços exibem a descrição no fluxo público; porte, preço e duração configurados alimentam as novas reservas.
 - [ ] Categorias podem ser criadas/editadas no Controle; serviços novos/editados exigem uma categoria e aparecem agrupados no link público, inclusive categorias vazias.
@@ -75,7 +78,7 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Cada cartão apresenta o serviço e “A partir de” com o menor preço; selecionar um porte atualiza preço/duração no resumo e inicia uma reserva para um serviço/animal. Para outro serviço ou animal, é necessário reservar outro horário.
 - [ ] A página agrupa serviços por categoria e mostra título/descrição editáveis; categorias sem serviços exibem estado vazio sem oferecer reserva.
 - [ ] Página inicial começa sem serviço selecionado nem carrinho; categorias aparecem recolhidas e expandem/fecham com botão acessível. Carrinho só surge após selecionar uma opção de serviço/porte.
-- [ ] Texto “Atendimento com carinho” não aparece; no passo de data há separação visível entre título e cards de dia; consentimento de privacidade fica ao lado da caixa de seleção em telas mobile.
+- [ ] Texto “Atendimento com carinho” não aparece; no passo de data há separação visível aumentada entre título e cards de dia; consentimento de privacidade fica ao lado da caixa de seleção em telas mobile.
 - [ ] O comprovante agradece ao cliente, confirma que o serviço foi agendado e oferece contato pelo WhatsApp configurado em Controle.
 - [ ] No celular (ou 375 px): botões grandes, nada cortado, barra "Continuar/Confirmar" visível, teclado numérico no telefone.
 - [ ] Fuso: com o relógio/fuso do computador diferente de São Paulo, os horários exibidos continuam os do negócio.

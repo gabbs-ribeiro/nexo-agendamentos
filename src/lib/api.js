@@ -87,6 +87,17 @@ export async function getAdminBooking(businessId, bookingId) {
   return data
 }
 
+export async function listAdminBookingConflicts(businessId, start, end) {
+  const { data, error } = await supabase.from('bookings')
+    .select('id, status')
+    .eq('business_id', businessId)
+    .neq('status', 'cancelled')
+    .lt('starts_at', end)
+    .gt('ends_at', start)
+  throwIfApiError(error, 'booking conflicts select')
+  return data ?? []
+}
+
 async function adminRpc(name, args) {
   let result
   try {
@@ -140,6 +151,54 @@ export function setAdminBookingStatus(bookingId, status) {
     p_booking_id: bookingId,
     p_status: status,
   })
+}
+
+export async function listBusinessHours(businessId) {
+  const { data, error } = await supabase.from('business_hours')
+    .select('id, business_id, day_of_week, opens_minute, closes_minute')
+    .eq('business_id', businessId)
+    .order('day_of_week')
+    .order('opens_minute')
+  throwIfApiError(error, 'business hours select')
+  return data ?? []
+}
+
+export function replaceBusinessHours(businessId, hours) {
+  return adminRpc('admin_replace_business_hours', {
+    p_business_id: businessId,
+    p_hours: hours,
+  })
+}
+
+export async function listAdminTimeBlocks(businessId, start, end) {
+  const { data, error } = await supabase.from('time_blocks')
+    .select('id, starts_at, ends_at, reason')
+    .eq('business_id', businessId)
+    .lt('starts_at', end)
+    .gt('ends_at', start)
+    .order('starts_at')
+  throwIfApiError(error, 'time blocks select')
+  return data ?? []
+}
+
+export function createAdminTimeBlock(businessId, startsAt, endsAt, reason) {
+  return adminRpc('admin_create_time_block', {
+    p_business_id: businessId,
+    p_starts_at: startsAt,
+    p_ends_at: endsAt,
+    p_reason: reason,
+  })
+}
+
+export async function deleteAdminTimeBlock(businessId, blockId) {
+  const { data, error } = await supabase.from('time_blocks')
+    .delete()
+    .eq('business_id', businessId)
+    .eq('id', blockId)
+    .select('id')
+    .maybeSingle()
+  throwIfApiError(error, 'time block delete')
+  if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
 }
 
 export function logoUrl(path) {
