@@ -26,33 +26,47 @@ export default function StepDateTime({ slug, business, optionId, date, slot, not
   }, [slug, optionId, date, tick])
 
   return (
-    <div className="stack">
-      <h1 ref={h1} tabIndex={-1}>Escolha o dia e o horário</h1>
+    <div className="stack step-date">
+      <header className="step-head">
+        <h1 ref={h1} tabIndex={-1}>Escolha o dia e o horário</h1>
+        <p className="muted">Toque em um dia e depois no horário que preferir.</p>
+      </header>
       {notice && <Notice tone="error">{notice}</Notice>}
 
-      <div className="days booking-days" role="group" aria-label="Dias disponíveis para agendar">
-        {days.map((d) => {
-          const p = dayChipParts(d)
-          return (
-            <button
-              key={d}
-              type="button"
-              className="chip"
-              aria-pressed={d === date}
-              aria-label={formatLongDate(d)}
-              onClick={() => onDate(d)}
-            >
-              <span>{p.weekday}</span>
-              <span className="day">{p.day}</span>
-              <span>{p.month}</span>
-            </button>
-          )
-        })}
-      </div>
+      <section className="when-card" aria-labelledby="when-day-title">
+        <div className="when-card-head"><h2 id="when-day-title">Escolha o dia</h2></div>
+        <div className="days booking-days" role="group" aria-label="Dias disponíveis para agendar">
+          {days.map((d) => {
+            const p = dayChipParts(d)
+            return (
+              <button
+                key={d}
+                type="button"
+                className="chip"
+                aria-pressed={d === date}
+                aria-label={formatLongDate(d)}
+                onClick={() => onDate(d)}
+              >
+                <span>{p.weekday}</span>
+                <span className="day">{p.day}</span>
+                <span>{p.month}</span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
 
-      <div aria-live="polite" className="stack-sm">
-        {!date && <p className="muted">Toque em um dia para ver os horários livres.</p>}
-        {date && <h2>Horários em {formatLongDate(date)}</h2>}
+      <section className="when-card" aria-labelledby="when-time-title" aria-live="polite">
+        <div className="when-card-head">
+          <h2 id="when-time-title">Horários</h2>
+          {date && <span className="when-date">{formatLongDate(date)}</span>}
+        </div>
+        {!date && (
+          <div className="slots-empty">
+            <span className="paw" aria-hidden="true">🐾</span>
+            <p>Toque em um dia para ver os horários livres.</p>
+          </div>
+        )}
         {slots.status === 'loading' && <p className="muted">Buscando horários…</p>}
         {slots.status === 'error' && (
           <>
@@ -61,7 +75,11 @@ export default function StepDateTime({ slug, business, optionId, date, slot, not
           </>
         )}
         {slots.status === 'ready' && slots.rows.length === 0 && (
-          <Notice>Nenhum horário livre neste dia. Escolha outro dia.</Notice>
+          <div className="slots-empty">
+            <span className="paw" aria-hidden="true">🐾</span>
+            <p>Nenhum horário livre neste dia.</p>
+            <p className="muted small">Escolha outro dia acima.</p>
+          </div>
         )}
         {slots.status === 'ready' && slots.rows.length > 0 && (
           <div className="slots">
@@ -78,7 +96,7 @@ export default function StepDateTime({ slug, business, optionId, date, slot, not
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       <div className="actions">
         <button type="button" className="btn btn-primary" disabled={!slot} onClick={onNext}>Continuar</button>
