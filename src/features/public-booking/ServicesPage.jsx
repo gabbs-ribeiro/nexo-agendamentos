@@ -21,10 +21,11 @@ export default function ServicesPage() {
           {services.map((s) => (
             <li key={s.service_id}>
               <h2>{s.name}</h2>
+              {s.description && <p className="service-description">{s.description}</p>}
               <ul className="prices">
                 {s.options.map((o) => (
                   <li key={o.option_id}>
-                    <span>{SIZE_LABELS[o.size]}</span>
+                    <span>{o.size_label || SIZE_LABELS[o.size] || o.size}</span>
                     <span className="muted">{formatDuration(o.duration_minutes)}</span>
                     <strong>{formatBRL(o.price_cents)}</strong>
                   </li>

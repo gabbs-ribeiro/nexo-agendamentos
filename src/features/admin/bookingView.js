@@ -46,7 +46,7 @@ export function dateRangeInTimezone(date, timezone) {
 export function bookingDetails(booking, timezone) {
   return {
     service: booking.service_name,
-    size: SIZE_LABELS[booking.size] ?? booking.size,
+    size: booking.size_label || SIZE_LABELS[booking.size] || booking.size,
     date: formatLongDate(dateInTimezone(booking.starts_at, timezone)),
     start: formatInstant(booking.starts_at, timezone).time,
     end: formatInstant(booking.ends_at, timezone).time,

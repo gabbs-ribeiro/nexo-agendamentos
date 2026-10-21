@@ -14,6 +14,7 @@ export default function StepService({ services, optionId, onSelect, onNext }) {
         {services.map((s) => (
           <div key={s.service_id} role="group" aria-labelledby={`svc-${s.service_id}`}>
             <p className="group-label" id={`svc-${s.service_id}`}>{s.name}</p>
+            {s.description && <p className="service-description">{s.description}</p>}
             {s.options.map((o) => (
               <label className="choice" key={o.option_id}>
                 <input
@@ -24,7 +25,7 @@ export default function StepService({ services, optionId, onSelect, onNext }) {
                   onChange={() => onSelect(o.option_id)}
                 />
                 <span className="choice-body">
-                  <span className="choice-title">Porte {SIZE_LABELS[o.size].toLowerCase()}</span>
+                  <span className="choice-title">Porte {(o.size_label || SIZE_LABELS[o.size] || o.size).toLowerCase()}</span>
                   <span className="choice-price">{formatBRL(o.price_cents)}</span>
                   <span className="muted small">{formatDuration(o.duration_minutes)}</span>
                 </span>

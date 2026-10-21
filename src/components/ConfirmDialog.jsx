@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 export default function ConfirmDialog({
   open,
   title,
+  description,
   children,
   cancelLabel = 'Voltar',
   confirmLabel,
@@ -43,7 +44,8 @@ export default function ConfirmDialog({
     >
       <div className="stack">
         <h2 id="confirm-dialog-title">{title}</h2>
-        <div className="confirm-dialog-content">{children}</div>
+        {description && <p className="muted">{description}</p>}
+        {children && <div className="confirm-dialog-content">{children}</div>}
         {error && <div className="notice" data-tone="error" role="alert">{error}</div>}
         <div className="confirm-dialog-actions">
           <button

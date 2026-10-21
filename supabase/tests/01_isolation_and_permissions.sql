@@ -67,6 +67,10 @@ begin
   assert n = 0, 'A enxergou servicos de B';
   select count(*) into n from public.service_options where business_id = 'b0000000-0000-0000-0000-0000000000b1';
   assert n = 0, 'A enxergou opcoes de B';
+  select count(*) into n from public.business_sizes;
+  assert n = 3, 'A deveria ver os 3 portes de A, viu ' || n;
+  select count(*) into n from public.business_sizes where business_id = 'b0000000-0000-0000-0000-0000000000b1';
+  assert n = 0, 'A enxergou portes de B';
   select count(*) into n from public.business_hours where business_id = 'b0000000-0000-0000-0000-0000000000b1';
   assert n = 0, 'A enxergou horarios de B';
   select count(*) into n from public.bookings;
@@ -84,6 +88,9 @@ begin
   update public.businesses set name = 'invadido' where id = 'b0000000-0000-0000-0000-0000000000b1';
   get diagnostics n = row_count;
   assert n = 0, 'A conseguiu alterar o negocio B';
+  update public.business_sizes set name = 'invadido' where business_id = 'b0000000-0000-0000-0000-0000000000b1';
+  get diagnostics n = row_count;
+  assert n = 0, 'A conseguiu alterar portes de B';
   delete from public.time_blocks where business_id = 'b0000000-0000-0000-0000-0000000000b1';
   get diagnostics n = row_count;
   assert n = 0, 'A conseguiu apagar bloqueio de B';
@@ -128,6 +135,14 @@ begin
     raise exception 'FAIL: A criou horario dentro de B';
   exception when insufficient_privilege then
     raise notice 'PASS: INSERT de horario em B bloqueado';
+  end;
+
+  begin
+    insert into public.business_sizes (business_id, code, name, sort_order)
+    values ('b0000000-0000-0000-0000-0000000000b1', 'custom-size', 'Porte de B', 4);
+    raise exception 'FAIL: A criou porte dentro de B';
+  exception when insufficient_privilege then
+    raise notice 'PASS: INSERT de porte em B bloqueado';
   end;
 
   -- Opcao de A apontando para servico de B: bloqueada (RLS e/ou FK composta)
@@ -247,6 +262,7 @@ begin
   select count(*) into n from public.time_blocks;      assert n = 0, 'C viu bloqueios';
   select count(*) into n from public.bookings;         assert n = 0, 'C viu agendamentos';
   select count(*) into n from public.business_members; assert n = 0, 'C viu vinculos';
+  select count(*) into n from public.business_sizes;   assert n = 0, 'C viu portes';
   begin
     perform public.admin_create_time_block(
       'a0000000-0000-0000-0000-0000000000a1', now() + interval '3 days', now() + interval '4 days');
@@ -276,6 +292,8 @@ begin
   begin perform 1 from public.bookings;         raise exception 'FAIL: anon leu bookings';
   exception when insufficient_privilege then null; end;
   begin perform 1 from public.business_members; raise exception 'FAIL: anon leu business_members';
+  exception when insufficient_privilege then null; end;
+  begin perform 1 from public.business_sizes;   raise exception 'FAIL: anon leu business_sizes';
   exception when insufficient_privilege then null; end;
   begin insert into public.bookings (business_id) values ('a0000000-0000-0000-0000-0000000000a1');
         raise exception 'FAIL: anon inseriu em bookings';
