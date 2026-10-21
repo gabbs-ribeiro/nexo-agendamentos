@@ -295,8 +295,6 @@ button, input, textarea, select { accent-color: var(--accent); }
 .business-hours-day { min-width: 0; display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #fffaf4; }
 .business-hours-day legend { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 0 0 4px; font-weight: 800; }
 .business-hours-interval { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: end; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.field .business-hours-midnight { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: .82rem; }
-.field .business-hours-midnight input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--accent); }
 .business-hours-remove { align-self: end; padding: 8px 0; }
 .business-hours-add { width: fit-content; }
 .size-list, .service-cards { display: grid; gap: 12px; }
