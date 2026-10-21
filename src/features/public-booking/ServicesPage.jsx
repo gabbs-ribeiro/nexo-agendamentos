@@ -6,6 +6,19 @@ import { findSelectedService } from './serviceSelection.js'
 import ServiceCard from './ServiceCard.jsx'
 import { usePublic } from './usePublic.js'
 
+// Cor e ícone de cada categoria: pelo nome (banho, hotel, vet...) ou, se não reconhecer, por uma paleta em sequência.
+const TONES = [
+  { key: 'aqua', icon: '🛁', words: /banho|tosa|higien|estetic|spa|hidrat/ },
+  { key: 'amber', icon: '🏡', words: /hotel|creche|hospedag|daycare|day care|pernoit|estadia/ },
+  { key: 'mint', icon: '🩺', words: /vet|consult|saude|exame|vacina|clinic/ },
+  { key: 'lilac', icon: '🎾', words: /adestr|treino|comport|passeio|recreac/ },
+]
+const FALLBACK_TONES = ['peach', 'aqua', 'amber', 'mint', 'lilac']
+function categoryTone(name, index) {
+  const text = (name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  return TONES.find((tone) => tone.words.test(text)) || { key: FALLBACK_TONES[index % FALLBACK_TONES.length], icon: '🐾' }
+}
+
 export default function ServicesPage() {
   const { slug, business, services, categories } = usePublic()
   const [selectedOptionId, setSelectedOptionId] = useState('')
@@ -42,11 +55,13 @@ export default function ServicesPage() {
           <Notice>Este estabelecimento ainda não publicou categorias de serviços.</Notice>
         ) : (
           <div className="public-service-list">
-            {categories.map((category) => {
+            {categories.map((category, index) => {
+              const tone = categoryTone(category.name, index)
               const expanded = expandedCategories.has(category.category_id)
               return (
                 <section
                   className="public-category-card"
+                  data-tone={tone.key}
                   key={category.category_id}
                   aria-labelledby={`public-category-${category.category_id}`}
                 >
@@ -58,6 +73,7 @@ export default function ServicesPage() {
                     aria-controls={`public-category-content-${category.category_id}`}
                     onClick={() => toggleCategory(category.category_id)}
                   >
+                    <span className="public-category-icon" aria-hidden="true">{tone.icon}</span>
                     <span className="public-category-copy">
                       <strong>{category.name}</strong>
                       {category.description && <span>{category.description}</span>}
