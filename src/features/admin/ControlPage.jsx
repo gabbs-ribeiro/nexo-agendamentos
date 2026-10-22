@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
+import ControlBar, { IconClock, IconList, IconProfile, IconSizes, IconTag } from '../../components/ControlBar.jsx'
 import Notice from '../../components/Notice.jsx'
 import {
   archiveService,
   getBusinessControl,
   listBusinessCatalog,
-  logoUrl,
   removeBusinessLogo,
   saveBusinessSize,
   saveServiceCategory,
@@ -18,21 +18,13 @@ import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
 import { digitsOnly, formatBRL, isValidPhone, maskPhone } from '../../lib/format.js'
 import { useAdminBusiness, useUpdateAdminBusiness } from './AdminBusinessContext.jsx'
 import BusinessHoursSection from './BusinessHoursSection.jsx'
+import { countLabel } from './controlSummary.js'
+import ProfileHeader from './ProfileHeader.jsx'
 import { groupServicesByCategory } from './catalogCategories.js'
 import { priceToCents, sizeCodeForName } from './serviceCatalog.js'
 
 function ErrorNotice({ children }) {
   return children ? <Notice tone="error">{children}</Notice> : null
-}
-
-function LogoPreview({ path, name }) {
-  const [failed, setFailed] = useState(false)
-  const url = logoUrl(path)
-  useEffect(() => { setFailed(false) }, [url])
-  if (!url || failed) {
-    return <span className="control-avatar-fallback" aria-hidden="true">{name.trim().charAt(0).toUpperCase()}</span>
-  }
-  return <img className="control-avatar" src={url} alt="" onError={() => setFailed(true)} />
 }
 
 function newDraft(sizes, categories) {
@@ -56,7 +48,9 @@ export default function ControlPage() {
   const [state, setState] = useState({ status: 'loading' })
   const [profile, setProfile] = useState(null)
   const [profileDraft, setProfileDraft] = useState({ name: '', primary_color: '#ef946f' })
-  const [logoFile, setLogoFile] = useState(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoError, setPhotoError] = useState('')
+  const [photoNotice, setPhotoNotice] = useState('')
   const [profileError, setProfileError] = useState('')
   const [profileNotice, setProfileNotice] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
@@ -118,8 +112,6 @@ export default function ControlPage() {
     () => state.status === 'ready' ? state.sizes.filter((size) => size.is_active) : [],
     [state],
   )
-  const previewUrl = useMemo(() => logoFile ? URL.createObjectURL(logoFile) : null, [logoFile])
-  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
   function editService(service) {
     const options = Object.fromEntries(activeSizes.map((size) => {
@@ -162,8 +154,6 @@ export default function ControlPage() {
     setSavingProfile(true)
     setProfileError('')
     setProfileNotice('')
-    let uploadedPath = null
-    let newPath = profile.logo_path
     try {
       const name = profileDraft.name.trim()
       if (!name || name.length > 80) {
@@ -175,54 +165,69 @@ export default function ControlPage() {
         setProfileError('Informe um WhatsApp válido com DDD ou deixe o campo vazio.')
         return
       }
-      if (logoFile) {
-        uploadedPath = await uploadBusinessLogo(business.id, logoFile)
-        newPath = uploadedPath
-      }
-      try {
-        await updateBusinessProfile(business.id, {
-          name,
-          primary_color: profileDraft.primary_color,
-          logo_path: newPath,
-          contact_phone: contactPhone || null,
-        })
-      } catch (error) {
-        if (uploadedPath) {
-          try { await removeBusinessLogo(uploadedPath) } catch (cleanupError) {
-            console.error('[business logo cleanup]', cleanupError.code)
-          }
-        }
-        throw error
-      }
+      await updateBusinessProfile(business.id, {
+        name,
+        primary_color: profileDraft.primary_color,
+        logo_path: profile.logo_path,
+        contact_phone: contactPhone || null,
+      })
       setProfile({
         ...profile,
-        ...profileDraft,
         name,
-        logo_path: newPath,
+        primary_color: profileDraft.primary_color,
         contact_phone: contactPhone || null,
       })
       updateAdminBusiness({
         id: business.id,
         name,
-        logo_path: newPath,
         primary_color: profileDraft.primary_color,
         contact_phone: contactPhone || null,
       })
-      setLogoFile(null)
-      if (uploadedPath && profile.logo_path) {
-        try {
-          await removeBusinessLogo(profile.logo_path)
-          setProfileNotice('Perfil atualizado. A página de agendamento já mostra as novas informações.')
-        } catch {
-          setProfileNotice('Perfil atualizado. A foto antiga não pôde ser removida; a nova já está ativa.')
-        }
-      } else {
-        setProfileNotice('Perfil atualizado. A página de agendamento já mostra as novas informações.')
-      }
+      setProfileNotice('Perfil atualizado. A página de agendamento já mostra as novas informações.')
     } catch (error) {
       setProfileError(messageFor(error))
     } finally {
       setSavingProfile(false)
+    }
+  }
+
+  // Troca a foto ao escolher o arquivo no topo da pagina. Usa os dados JA SALVOS do perfil
+  // (nao leva rascunhos nao salvos do formulario). A validacao de tipo/tamanho e do uploadBusinessLogo.
+  async function changePhoto(file) {
+    if (photoBusy || !profile) return
+    setPhotoBusy(true)
+    setPhotoError('')
+    setPhotoNotice('')
+    let uploadedPath = null
+    try {
+      uploadedPath = await uploadBusinessLogo(business.id, file)
+      try {
+        await updateBusinessProfile(business.id, {
+          name: profile.name,
+          primary_color: profile.primary_color,
+          logo_path: uploadedPath,
+          contact_phone: profile.contact_phone ?? null,
+        })
+      } catch (error) {
+        try { await removeBusinessLogo(uploadedPath) } catch (cleanupError) {
+          console.error('[business logo cleanup]', cleanupError.code)
+        }
+        throw error
+      }
+      const previousPath = profile.logo_path
+      setProfile((current) => ({ ...current, logo_path: uploadedPath }))
+      updateAdminBusiness({ id: business.id, logo_path: uploadedPath })
+      let message = 'Foto atualizada. A página de agendamento já mostra a nova imagem.'
+      if (previousPath) {
+        try { await removeBusinessLogo(previousPath) } catch {
+          message = 'Foto atualizada. A foto antiga não pôde ser removida; a nova já está ativa.'
+        }
+      }
+      setPhotoNotice(message)
+    } catch (error) {
+      setPhotoError(messageFor(error))
+    } finally {
+      setPhotoBusy(false)
     }
   }
 
@@ -377,23 +382,23 @@ export default function ControlPage() {
   if (state.status === 'loading') return <p className="status" role="status">Carregando controle do estabelecimento…</p>
   if (state.status === 'error') return <section className="stack"><Notice tone="error">{state.message || ERROR_MESSAGES.NETWORK}</Notice><button className="btn btn-quiet" onClick={load}>Tentar novamente</button></section>
 
+  const activeServiceCount = state.services.filter((service) => service.is_active && !service.archived_at).length
+  const activeSizeCount = state.sizes.filter((size) => size.is_active).length
+
   return (
     <div className="control-page stack">
-      <header className="admin-hero">
-        <div className="admin-hero-copy">
-          <span className="eyebrow">Seu espaço, seu jeito</span>
-          <h1>Controle</h1>
-          <p>Cuide do perfil que seus clientes veem e deixe os serviços prontos para reserva.</p>
-        </div>
-        <span className="hero-paw" aria-hidden="true">✿</span>
-      </header>
+      <ProfileHeader
+        name={profile?.name || business.name}
+        logoPath={profile?.logo_path}
+        busy={photoBusy}
+        error={photoError}
+        notice={photoNotice}
+        onPickFile={changePhoto}
+      />
 
-      <section className="control-card stack" aria-labelledby="profile-title">
-        <div className="control-section-heading">
-          <div><span className="eyebrow">Aparece para os tutores</span><h2 id="profile-title">Perfil público</h2></div>
-          <LogoPreview path={previewUrl ?? profile?.logo_path} name={profileDraft.name || business.name} />
-        </div>
-        <p className="muted">Nome e foto também aparecem na página de agendamento.</p>
+      <div className="control-bars">
+      <ControlBar icon={<IconProfile />} tone="peach" title="Perfil público" summary="Nome, WhatsApp e cor">
+        <p className="muted">Nome e cor também aparecem na página de agendamento.</p>
         <form className="control-form" onSubmit={saveProfile}>
           <div className="field">
             <label htmlFor="business-name">Nome do estabelecimento</label>
@@ -410,12 +415,6 @@ export default function ControlPage() {
               }))} />
             <span className="hint">Este número aparece no link público para o cliente entrar em contato.</span>
           </div>
-          <div className="field">
-            <label htmlFor="business-logo">Foto do perfil</label>
-            <input id="business-logo" type="file" accept="image/png,image/jpeg,image/webp"
-              onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)} />
-            <span className="hint">PNG, JPG ou WEBP, até 1 MB. A imagem é pública na página de agendamento.</span>
-          </div>
           <div className="field control-color-field">
             <label htmlFor="business-color">Cor de destaque</label>
             <input id="business-color" type="color" value={profileDraft.primary_color}
@@ -427,15 +426,13 @@ export default function ControlPage() {
             {savingProfile ? 'Salvando perfil…' : 'Salvar perfil'}
           </button>
         </form>
-      </section>
+      </ControlBar>
 
-      <BusinessHoursSection businessId={business.id} />
+      <ControlBar icon={<IconClock />} tone="sage" title="Horário de funcionamento" summary="Dias e períodos">
+        <BusinessHoursSection businessId={business.id} bare />
+      </ControlBar>
 
-      <section className="control-card stack" aria-labelledby="sizes-title">
-        <div className="control-section-heading">
-          <div><span className="eyebrow">Padrões de atendimento</span><h2 id="sizes-title">Portes disponíveis</h2></div>
-          <span className="control-icon" aria-hidden="true">＋</span>
-        </div>
+      <ControlBar icon={<IconSizes />} tone="sand" title="Portes disponíveis" summary={countLabel(activeSizeCount, 'porte ativo', 'portes ativos')}>
         <p className="muted">Os portes são compartilhados entre os serviços. Ao renomear um porte, o histórico já salvo permanece igual.</p>
         <div className="size-list">
           {state.sizes.map((size) => (
@@ -463,18 +460,15 @@ export default function ControlPage() {
           <button className="btn btn-quiet" type="submit" disabled={savingSize}>{savingSize ? 'Adicionando…' : 'Adicionar porte'}</button>
         </form>
         <ErrorNotice>{sizeError}</ErrorNotice>
-      </section>
+      </ControlBar>
 
-      <section className="control-card stack" aria-labelledby="categories-title">
-        <div className="control-section-heading">
-          <div><span className="eyebrow">Organize seu catálogo</span><h2 id="categories-title">Categorias</h2></div>
-          <button className="btn btn-primary add-service-button" type="button" onClick={() => {
-            setCategoryDraft({ id: null, name: '', description: '' })
-            setCategoryError('')
-            setCategoryNotice('')
-          }}>Adicionar categoria</button>
-        </div>
+      <ControlBar icon={<IconTag />} tone="lilac" title="Categorias" summary={countLabel(state.categories.length, 'categoria', 'categorias')}>
         <p className="muted">As categorias agrupam os serviços exibidos no link de agendamento.</p>
+        <button className="btn btn-primary add-service-button" type="button" onClick={() => {
+          setCategoryDraft({ id: null, name: '', description: '' })
+          setCategoryError('')
+          setCategoryNotice('')
+        }}>Adicionar categoria</button>
         {categoryNotice && <Notice>{categoryNotice}</Notice>}
         <ErrorNotice>{categoryError}</ErrorNotice>
         <div className="category-admin-list">
@@ -497,15 +491,12 @@ export default function ControlPage() {
             )
           })}
         </div>
-      </section>
+      </ControlBar>
 
-      <section className="control-card stack" aria-labelledby="services-title">
-        <div className="control-section-heading">
-          <div><span className="eyebrow">O que você oferece</span><h2 id="services-title">Serviços para reserva</h2></div>
-          <button className="btn btn-primary add-service-button" type="button" onClick={() => {
-            setDraft(newDraft(activeSizes, state.categories)); setServiceError(''); setServiceNotice('')
-          }}>Adicionar serviço</button>
-        </div>
+      <ControlBar icon={<IconList />} tone="rose" title="Serviços para reserva" summary={countLabel(activeServiceCount, 'serviço ativo', 'serviços ativos')}>
+        <button className="btn btn-primary add-service-button" type="button" onClick={() => {
+          setDraft(newDraft(activeSizes, state.categories)); setServiceError(''); setServiceNotice('')
+        }}>Adicionar serviço</button>
         {serviceNotice && <Notice>{serviceNotice}</Notice>}
         <ErrorNotice>{serviceError}</ErrorNotice>
         {state.services.length === 0 && <p className="muted">Nenhum serviço cadastrado ainda.</p>}
@@ -594,7 +585,8 @@ export default function ControlPage() {
             </button>
           </form>}
         </dialog>
-      </section>
+      </ControlBar>
+      </div>
 
       <dialog
         ref={categoryDialogRef}

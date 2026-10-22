@@ -4,7 +4,7 @@ import { listBusinessHours, replaceBusinessHours } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { businessHoursDraft, businessHoursPayload, WEEKDAYS } from './businessHours.js'
 
-export default function BusinessHoursSection({ businessId }) {
+export default function BusinessHoursSection({ businessId, bare = false }) {
   const [draft, setDraft] = useState(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -77,15 +77,18 @@ export default function BusinessHoursSection({ businessId }) {
     }
   }
 
+  const Wrapper = bare ? 'div' : 'section'
+  const wrapperProps = bare ? { className: 'stack' } : { className: 'control-card stack', 'aria-labelledby': 'business-hours-title' }
+
   return (
-    <section className="control-card stack" aria-labelledby="business-hours-title">
-      <div className="control-section-heading">
+    <Wrapper {...wrapperProps}>
+      {!bare && <div className="control-section-heading">
         <div>
           <span className="eyebrow">Disponibilidade do estabelecimento</span>
           <h2 id="business-hours-title">Horário de funcionamento</h2>
         </div>
         <span className="control-icon" aria-hidden="true">◷</span>
-      </div>
+      </div>}
       <p className="muted">Configure os dias e períodos disponíveis para novas reservas. Você pode adicionar mais de um intervalo no mesmo dia, como manhã e tarde. Os horários seguem o fuso do estabelecimento.</p>
       {loading && <p className="status" role="status">Carregando horários…</p>}
       {error && <Notice tone="error">{error}</Notice>}
@@ -126,6 +129,6 @@ export default function BusinessHoursSection({ businessId }) {
         </button>
       </form>}
       {!loading && !draft && <button className="btn btn-quiet" type="button" onClick={load}>Tentar novamente</button>}
-    </section>
+    </Wrapper>
   )
 }
