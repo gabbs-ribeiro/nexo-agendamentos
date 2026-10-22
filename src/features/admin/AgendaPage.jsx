@@ -14,6 +14,7 @@ import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
 import { addDaysYmd, dayChipParts, formatInstant, formatLongDate, todayInTz } from '../../lib/format.js'
 import { dateRangeInTimezone } from './bookingView.js'
 import { useAdminBusiness } from './AdminBusinessContext.jsx'
+import { capitalizeFirst, weekDays, weekMonthTitle } from './calendarWeek.js'
 import BookingList from './BookingList.jsx'
 import BookingShareCard from './BookingShareCard.jsx'
 import ManualBookingDialog from './ManualBookingDialog.jsx'
@@ -34,6 +35,7 @@ export default function AgendaPage({ view }) {
   const isHome = view === 'home'
   const today = todayInTz(business.timezone)
   const [selectedDate, setSelectedDate] = useState(today)
+  const [dir, setDir] = useState('next') // sentido da última troca de data (anima a lista e a semana)
   const date = isHome ? today : selectedDate
   const [state, setState] = useState({ status: 'loading' })
   const [reload, setReload] = useState(0)
@@ -168,10 +170,16 @@ export default function AgendaPage({ view }) {
     }
   }
 
-  const selectedWeek = Array.from({ length: 7 }, (_, index) => addDaysYmd(date, index - 3))
+  const week = weekDays(selectedDate)
+
+  function pickDate(next) {
+    if (!next || next === selectedDate) return
+    setDir(next > selectedDate ? 'next' : 'prev')
+    setSelectedDate(next)
+  }
 
   return (
-    <section className="agenda-page">
+    <section className={`agenda-page${isHome ? '' : ' agenda-calendar'}`}>
       {isHome ? (
         <header className="admin-hero">
           <div className="admin-hero-copy">
@@ -208,25 +216,51 @@ export default function AgendaPage({ view }) {
           </div>
         </section>
       ) : (
-        <section className="calendar-date-picker stack-sm" aria-label="Escolher dia da agenda">
-          <div className="field calendar-date-field">
-            <label htmlFor="agenda-date">Escolha uma data</label>
-            <input id="agenda-date" type="date" value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value)} />
+        <section className="calendar-date-picker" aria-label="Escolher dia da agenda">
+          <div className="calendar-toolbar">
+            <h2 className="calendar-month" aria-live="polite">{weekMonthTitle(week)}</h2>
+            <label className="calendar-nav-btn calendar-jump" title="Ir para uma data específica">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3.5" y="5" width="17" height="15.5" rx="3" /><path d="M8 3v4M16 3v4M3.5 10h17" />
+              </svg>
+              <span className="sr-only">Escolher uma data específica</span>
+              <input type="date" value={selectedDate}
+                onClick={(event) => { try { event.currentTarget.showPicker?.() } catch { /* o navegador abre sozinho */ } }}
+                onChange={(event) => pickDate(event.target.value)} />
+            </label>
+            <div className="calendar-nav">
+              <button type="button" className="calendar-nav-btn" aria-label="Semana anterior"
+                onClick={() => pickDate(addDaysYmd(selectedDate, -7))}>‹</button>
+              <button type="button" className="calendar-today-btn" disabled={selectedDate === today}
+                onClick={() => pickDate(today)}>Hoje</button>
+              <button type="button" className="calendar-nav-btn" aria-label="Próxima semana"
+                onClick={() => pickDate(addDaysYmd(selectedDate, 7))}>›</button>
+            </div>
           </div>
-          <div className="days calendar-days" role="group" aria-label="Dias próximos">
-            {selectedWeek.map((day) => {
+          <div className="calendar-days" key={`semana-${week[0]}`} data-dir={dir} role="group" aria-label="Dias da semana">
+            {week.map((day) => {
               const parts = dayChipParts(day)
               return (
-                <button key={day} type="button" className="chip calendar-day"
-                  aria-pressed={day === selectedDate} onClick={() => setSelectedDate(day)}
-                  aria-label={formatLongDate(day)}>
-                  <span>{parts.weekday}</span><span className="day">{parts.day}</span><span>{parts.month}</span>
+                <button key={day} type="button" className="calendar-day" data-today={day === today ? 'true' : undefined}
+                  aria-pressed={day === selectedDate} aria-label={formatLongDate(day)} onClick={() => pickDate(day)}>
+                  <span className="calendar-day-name">{parts.weekday}</span>
+                  <span className="calendar-day-num">{parts.day}</span>
+                  <span className="calendar-day-dot" aria-hidden="true" />
                 </button>
               )
             })}
           </div>
-          <h2 className="calendar-selected-date">{formatLongDate(selectedDate)}</h2>
+          <div className="calendar-selected" key={`dia-${selectedDate}`} data-dir={dir}>
+            <h2 className="calendar-selected-date">
+              {capitalizeFirst(formatLongDate(selectedDate))}
+              {selectedDate === today && <span className="calendar-badge">Hoje</span>}
+            </h2>
+            <span className="calendar-count">
+              {state.status === 'ready'
+                ? `${state.bookings.length} ${state.bookings.length === 1 ? 'agendamento' : 'agendamentos'}`
+                : state.status === 'loading' ? 'Carregando…' : '—'}
+            </span>
+          </div>
         </section>
       )}
 
@@ -261,6 +295,7 @@ export default function AgendaPage({ view }) {
       {state.status === 'loading' && <p className="status" role="status">Carregando agendamentos…</p>}
       {state.status === 'error' && <Notice tone="error">{ERROR_MESSAGES.NETWORK}</Notice>}
       {state.status === 'ready' && (
+        <div className={isHome ? undefined : 'calendar-results'} key={`lista-${date}`} data-dir={dir}>
         <BookingList
           bookings={state.bookings}
           timezone={business.timezone}
@@ -272,6 +307,7 @@ export default function AgendaPage({ view }) {
           }}
           emptyText={isHome ? 'Sem agendamentos por hoje.' : 'Sem agendamentos nesta data.'}
         />
+        </div>
       )}
 
       {isHome && <BookingShareCard slug={business.slug} businessName={business.name} />}
