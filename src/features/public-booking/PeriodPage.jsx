@@ -4,7 +4,7 @@ import Notice from '../../components/Notice.jsx'
 import { createPublicPeriodBooking, getPeriodQuote } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import {
-  addDaysYmd, formatBRL, formatLongDate, newIdempotencyKey, todayInTz,
+  bookableDays, dayChipParts, formatBRL, formatLongDate, newIdempotencyKey,
 } from '../../lib/format.js'
 import { initialForm } from './bookingReducer.js'
 import StepDetails from './StepDetails.jsx'
@@ -33,7 +33,10 @@ export default function PeriodPage() {
     () => findSelectedService(services.filter((service) => service.booking_mode === 'periods'), optionId),
     [services, optionId],
   )
-  const today = todayInTz(business.timezone)
+  const days = useMemo(
+    () => bookableDays(business.timezone, business.max_days_ahead),
+    [business.timezone, business.max_days_ahead],
+  )
   const [date, setDate] = useState('')
   const [period, setPeriod] = useState('morning')
   const [quote, setQuote] = useState({ status: 'idle' })
@@ -71,7 +74,6 @@ export default function PeriodPage() {
 
   const ready = quote.status === 'ready' ? quote.data : null
   const soldOut = ready?.available === false
-  const maxDate = addDaysYmd(today, business.max_days_ahead)
   const starts = period === 'afternoon' ? settings.afternoon_start : settings.morning_start
   const ends = period === 'morning' ? settings.morning_end : settings.afternoon_end
   const localTime = (time) => time?.slice(0, 5) ?? ''
@@ -128,11 +130,26 @@ export default function PeriodPage() {
             <h1 ref={h1} tabIndex={-1}>Escolha o dia e o período</h1>
             <p className="muted">A creche tem capacidade compartilhada de até quatro pets em cada período.</p>
           </div>
-          <div className="field">
-            <label htmlFor="daycare-date">Data</label>
-            <input id="daycare-date" type="date" min={today} max={maxDate} value={date}
-              onChange={(event) => { setDate(event.target.value); setNotice(''); setKey(null) }} />
-          </div>
+          <section className="when-card" aria-labelledby="daycare-day-title">
+            <div className="when-card-head">
+              <h2 id="daycare-day-title">Escolha o dia</h2>
+              {date && <span className="when-date">{formatLongDate(date)}</span>}
+            </div>
+            <div className="days booking-days" role="group" aria-labelledby="daycare-day-title">
+              {days.map((day) => {
+                const parts = dayChipParts(day)
+                return (
+                  <button key={day} type="button" className="chip" aria-pressed={day === date}
+                    aria-label={formatLongDate(day)}
+                    onClick={() => { setDate(day); setNotice(''); setKey(null) }}>
+                    <span>{parts.weekday}</span>
+                    <span className="day">{parts.day}</span>
+                    <span>{parts.month}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
           <fieldset className="booking-mode-picker">
             <legend>Período</legend>
             <div className="booking-mode-options">
