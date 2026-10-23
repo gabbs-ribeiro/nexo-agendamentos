@@ -44,13 +44,6 @@ export function resolveDurationMinutes(mode, value) {
     : null
 }
 
-export function parseTimeOptions(value) {
-  const values = String(value ?? '').split(',').map((item) => item.trim()).filter(Boolean)
-  if (!values.length || values.some((item) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(item))) return null
-  const unique = [...new Set(values)]
-  return unique.length === values.length ? unique.sort() : null
-}
-
 export function isValidPeriodSettings(settings) {
   const { morning_start, morning_end, afternoon_start, afternoon_end } = settings ?? {}
   return [morning_start, morning_end, afternoon_start, afternoon_end]

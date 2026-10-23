@@ -11,7 +11,9 @@ with
 allowed_anon(fn) as (values
   ('get_public_business'), ('list_public_services'),
   ('list_public_service_categories'), ('get_available_slots'), ('create_public_booking'),
-  ('get_stay_quote'), ('create_public_stay')),
+  ('get_stay_quote'), ('create_public_stay'),
+  ('get_public_booking_models'), ('get_period_quote'), ('create_public_period_booking'),
+  ('get_timed_stay_options'), ('create_public_timed_stay')),
 -- funcoes que usuarios logados podem executar (as publicas + admin)
 allowed_auth(fn) as (values
   ('get_public_business'), ('list_public_services'),
@@ -19,8 +21,12 @@ allowed_auth(fn) as (values
   ('admin_create_booking'), ('admin_set_booking_status'),
   ('admin_reschedule_booking'), ('admin_update_booking_details'),
   ('admin_create_time_block'), ('admin_update_booking_internal_notes'),
-  ('admin_replace_business_hours'),
-  ('get_stay_quote'), ('create_public_stay'), ('admin_set_stay_status')),
+  ('admin_replace_business_hours'), ('admin_delete_service_category'),
+  ('get_stay_quote'), ('create_public_stay'), ('admin_set_stay_status'),
+  ('get_public_booking_models'), ('get_period_quote'), ('create_public_period_booking'),
+  ('get_timed_stay_options'), ('create_public_timed_stay'),
+  ('admin_save_service_booking_settings'), ('admin_list_daycare_on_date'),
+  ('admin_set_daycare_status')),
 -- privilegios que authenticated NAO pode ter (decisoes de arquitetura)
 forbidden_auth(tbl, priv) as (values
   ('bookings','insert'), ('bookings','update'), ('bookings','delete'), ('bookings','truncate'),

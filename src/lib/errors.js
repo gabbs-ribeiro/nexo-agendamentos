@@ -24,6 +24,7 @@ export const ERROR_MESSAGES = {
   INVALID_PROFILE_IMAGE: 'Escolha uma imagem PNG, JPG ou WEBP de até 1 MB.',
   LOGO_UPLOAD_FAILED: 'Não foi possível enviar a foto. Confira o arquivo e tente novamente.',
   DUPLICATE_NAME: 'Já existe um item com esse nome. Escolha outro nome.',
+  CATEGORY_HAS_SERVICES: 'Mova ou exclua os serviços vinculados antes de excluir esta categoria.',
   UNKNOWN: 'Não foi possível concluir. Tente novamente em instantes.',
 }
 

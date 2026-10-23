@@ -1,5 +1,5 @@
 -- TESTE 13 — períodos de creche, preços por modalidade e hospedagem por horário.
--- Rodar SOMENTE em DEV após a migration 20261023000001.
+-- Rodar SOMENTE em DEV após as migrations 20261023000001 e 20261023000002.
 -- Transação com ROLLBACK; esperado: PASS e nenhuma exceção.
 begin;
 
@@ -27,6 +27,7 @@ declare
   v_count int;
   v_i int;
   v_key uuid := gen_random_uuid();
+  v_invalid jsonb;
 begin
   select id into v_category from public.service_categories
    where business_id = c_biz order by sort_order limit 1;
@@ -113,12 +114,27 @@ begin
   insert into public.service_options (business_id, service_id, size, price_cents, duration_minutes)
     values (c_biz, v_stay_service, 'small', 10000, 30) returning id into v_stay_option;
   v_result := public.admin_save_service_booking_settings(v_stay_service, '{
-    "check_in_times":["08:00"],
-    "check_out_times":["08:00","14:00","20:00"]
+    "check_in_start":"08:00",
+    "check_in_end":"09:00",
+    "check_out_start":"08:00",
+    "check_out_end":"20:00"
   }'::jsonb);
   assert (v_result->>'ok')::boolean, 'configuração da hospedagem falhou: ' || v_result::text;
 
+  v_result := public.get_timed_stay_options('loja-modelos', v_stay_option, v_day, '08:30');
+  assert coalesce((v_result->>'ok')::boolean, false),
+    'horários de entrada de 30 em 30 minutos devem ser aceitos: ' || v_result::text;
+  v_invalid := public.get_timed_stay_options('loja-modelos', v_stay_option, v_day, '09:30');
+  assert v_invalid->>'error' = 'INVALID_TIME_OPTIONS',
+    'entrada fora do intervalo configurado deve ser recusada: ' || v_invalid::text;
+
   v_result := public.get_timed_stay_options('loja-modelos', v_stay_option, v_day, '08:00');
+  assert (select count(*) from jsonb_array_elements(v_result->'options') o
+           where o->>'check_out' = v_day::text
+             and o->>'check_out_time' = '20:00'
+             and (o->>'charge_units')::numeric = 0.5
+             and (o->>'total_price_cents')::int = 5000) = 1,
+    '12 horas devem cobrar meia diária: ' || v_result::text;
   assert (select count(*) from jsonb_array_elements(v_result->'options') o
            where o->>'check_out' = (v_day + 1)::text
              and o->>'check_out_time' = '08:00'
@@ -133,8 +149,8 @@ begin
     '36 horas devem cobrar uma diária e meia: ' || v_result::text;
   assert not exists (
     select 1 from jsonb_array_elements(v_result->'options') o
-     where o->>'check_out' = (v_day + 1)::text and o->>'check_out_time' = '14:00'
-  ), 'duração arbitrária de 30 horas não deve aparecer';
+     where o->>'check_out' = (v_day + 1)::text and o->>'check_out_time' not in ('08:00', '20:00')
+  ), 'só saídas que completam blocos de 12 horas devem aparecer';
 
   for v_i in 1..4 loop
     v_result := public.create_public_timed_stay(
@@ -153,7 +169,7 @@ begin
   select count(*) into v_count from public.stay_bookings
    where business_id = c_biz and check_in_at is not null;
   assert v_count = 4, 'hospedagens por horário devem preservar os snapshots: ' || v_count;
-  raise notice 'PASS: modelos por período, capacidade compartilhada, tarifas e estadias temporizadas';
+  raise notice 'PASS: modelos por período, janelas de horário, tarifas e estadias temporizadas';
 end;
 $$;
 
