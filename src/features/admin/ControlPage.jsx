@@ -24,7 +24,9 @@ import { groupServicesByCategory } from './catalogCategories.js'
 import {
   BOOKING_MODE_LABELS,
   isDailyService,
+  isValidPeriodSettings,
   normalizeBookingMode,
+  parseTimeOptions,
   priceToCents,
   resolveDurationMinutes,
   sizeCodeForName,
@@ -41,9 +43,20 @@ function newDraft(sizes, categories) {
     name: '',
     description: '',
     booking_mode: 'hourly',
+    settings: {
+      morning_start: '',
+      morning_end: '',
+      afternoon_start: '',
+      afternoon_end: '',
+      check_in_times: '',
+      check_out_times: '',
+    },
     options: Object.fromEntries(sizes.map((size) => [size.code, {
       id: null,
       price: '',
+      morning_price: '',
+      afternoon_price: '',
+      full_day_price: '',
       duration: '30',
       enabled: false,
     }])),
@@ -127,6 +140,9 @@ export default function ControlPage() {
       return [size.code, {
         id: option?.id ?? null,
         price: option ? (option.price_cents / 100).toFixed(2).replace('.', ',') : '',
+        morning_price: option?.morning_price_cents == null ? '' : (option.morning_price_cents / 100).toFixed(2).replace('.', ','),
+        afternoon_price: option?.afternoon_price_cents == null ? '' : (option.afternoon_price_cents / 100).toFixed(2).replace('.', ','),
+        full_day_price: option?.full_day_price_cents == null ? '' : (option.full_day_price_cents / 100).toFixed(2).replace('.', ','),
         duration: option ? String(option.duration_minutes) : '30',
         enabled: Boolean(option?.is_active),
       }]
@@ -137,6 +153,14 @@ export default function ControlPage() {
       name: service.name,
       description: service.description ?? '',
       booking_mode: normalizeBookingMode(service.booking_mode),
+      settings: {
+        morning_start: service.settings?.morning_start?.slice(0, 5) ?? '',
+        morning_end: service.settings?.morning_end?.slice(0, 5) ?? '',
+        afternoon_start: service.settings?.afternoon_start?.slice(0, 5) ?? '',
+        afternoon_end: service.settings?.afternoon_end?.slice(0, 5) ?? '',
+        check_in_times: (service.settings?.check_in_times ?? []).map((time) => time.slice(0, 5)).join(', '),
+        check_out_times: (service.settings?.check_out_times ?? []).map((time) => time.slice(0, 5)).join(', '),
+      },
       options,
     })
     setServiceError('')
@@ -150,7 +174,10 @@ export default function ControlPage() {
       options: {
         ...current.options,
         [code]: {
-          ...(current.options[code] ?? { id: null, price: '', duration: '30', enabled: false }),
+          ...(current.options[code] ?? {
+            id: null, price: '', morning_price: '', afternoon_price: '', full_day_price: '',
+            duration: '30', enabled: false,
+          }),
           [key]: value,
         },
       },
@@ -310,33 +337,68 @@ export default function ControlPage() {
         throw new Error('validation')
       }
       const options = activeSizes.map((size) => {
-        const option = draft.options[size.code] ?? { id: null, price: '', duration: '30', enabled: false }
+        const option = draft.options[size.code] ?? {
+          id: null, price: '', morning_price: '', afternoon_price: '', full_day_price: '',
+          duration: '30', enabled: false,
+        }
         if (!option.enabled) return option.id
           ? { id: option.id, size: size.code, is_active: false }
           : { id: null, size: size.code, is_active: false }
-        const priceCents = priceToCents(option.price)
+        const priceCents = priceToCents(
+          draft.booking_mode === 'periods' ? option.morning_price : option.price,
+        )
         const duration = resolveDurationMinutes(draft.booking_mode, option.duration)
         if (priceCents === null || duration === null) throw new Error('validation')
+        const periodPrices = draft.booking_mode === 'periods' ? {
+          morning_price_cents: priceCents,
+          afternoon_price_cents: priceToCents(option.afternoon_price),
+          full_day_price_cents: priceToCents(option.full_day_price),
+        } : {
+          morning_price_cents: null,
+          afternoon_price_cents: null,
+          full_day_price_cents: null,
+        }
+        if (draft.booking_mode === 'periods'
+          && Object.values(periodPrices).some((value) => value === null)) throw new Error('validation')
         return {
           id: option.id,
           size: size.code,
           price_cents: priceCents,
           duration_minutes: duration,
+          ...periodPrices,
           is_active: true,
         }
       })
       if (!options.some((option) => option.is_active)) throw new Error('validation')
+      let bookingSettings = {}
+      if (draft.booking_mode === 'periods') {
+        if (!isValidPeriodSettings(draft.settings)) throw new Error('validation')
+        bookingSettings = {
+          morning_start: draft.settings.morning_start,
+          morning_end: draft.settings.morning_end,
+          afternoon_start: draft.settings.afternoon_start,
+          afternoon_end: draft.settings.afternoon_end,
+        }
+      } else if (draft.booking_mode === 'stay') {
+        const checkInTimes = parseTimeOptions(draft.settings.check_in_times)
+        const checkOutTimes = parseTimeOptions(draft.settings.check_out_times)
+        if (!checkInTimes || !checkOutTimes) throw new Error('validation')
+        bookingSettings = {
+          check_in_times: checkInTimes,
+          check_out_times: checkOutTimes,
+        }
+      }
       await saveService(business.id, {
         ...draft,
         name: draft.name.trim(),
         booking_mode: normalizeBookingMode(draft.booking_mode),
-      }, options)
+      }, options, bookingSettings)
       setDraft(null)
       setServiceNotice('Serviço salvo. As alterações valem para novos agendamentos.')
       await load()
     } catch (error) {
       setServiceError(error.message === 'validation'
-        ? 'Confira a categoria, o nome, a descrição, os preços e os tempos (quando for por horário). Selecione ao menos um porte.'
+        ? 'Confira a categoria, o nome, os horários, os preços de cada modalidade e os portes selecionados.'
         : messageFor(error))
       await load()
     } finally {
@@ -532,7 +594,11 @@ export default function ControlPage() {
                       {service.options.filter((option) => option.is_active).map((option) => {
                         const size = state.sizes.find((item) => item.code === option.size)
                         const daily = isDailyService(service)
-                        return <li key={option.id}><span>{size?.name ?? option.size}</span><span>{daily ? 'por diária' : `${option.duration_minutes} min`}</span><strong>{formatBRL(option.price_cents)}</strong></li>
+                        const prices = [option.morning_price_cents, option.afternoon_price_cents, option.full_day_price_cents]
+                        const periodSummary = prices.every((price) => price != null)
+                          ? `manhã ${formatBRL(prices[0])} · tarde ${formatBRL(prices[1])} · integral ${formatBRL(prices[2])}`
+                          : `${formatBRL(option.price_cents)}`
+                        return <li key={option.id}><span>{size?.name ?? option.size}</span><span>{service.booking_mode === 'periods' ? periodSummary : daily ? 'por diária' : `${option.duration_minutes} min`}</span>{service.booking_mode !== 'periods' && <strong>{formatBRL(option.price_cents)}</strong>}</li>
                       })}
                     </ul>
                     {!service.archived_at && <div className="service-card-actions">
@@ -582,7 +648,11 @@ export default function ControlPage() {
               <div className="booking-mode-options">
                 {[
                   { value: 'hourly', title: 'Por horário', hint: 'Banho, tosa e outros serviços com hora marcada e duração.' },
-                  { value: 'daily', title: 'Por diária', hint: 'Pet hotel e creche, cobrados por dia de estadia.' },
+                  { value: 'periods', title: 'Por períodos', hint: 'Manhã, tarde ou integral, com capacidade compartilhada.' },
+                  { value: 'stay', title: 'Entrada e saída', hint: 'Hospedagem com horários configuráveis e cobrança por duração.' },
+                  ...(draft.booking_mode === 'daily'
+                    ? [{ value: 'daily', title: 'Por diária (legado)', hint: 'Mantém o fluxo existente baseado apenas em datas.' }]
+                    : []),
                 ].map((mode) => (
                   <label className="booking-mode-option" key={mode.value} data-checked={draft.booking_mode === mode.value}>
                     <input type="radio" name="service-booking-mode" value={mode.value}
@@ -596,27 +666,85 @@ export default function ControlPage() {
                 ))}
               </div>
             </fieldset>
+            {draft.booking_mode === 'periods' && (
+              <fieldset className="service-booking-settings stack-sm">
+                <legend>Horários dos períodos</legend>
+                <div className="service-settings-grid">
+                  <div className="field"><label htmlFor="morning-start">Início da manhã</label>
+                    <input id="morning-start" type="time" required value={draft.settings.morning_start}
+                      onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, morning_start: event.target.value } }))} /></div>
+                  <div className="field"><label htmlFor="morning-end">Fim da manhã</label>
+                    <input id="morning-end" type="time" required value={draft.settings.morning_end}
+                      onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, morning_end: event.target.value } }))} /></div>
+                  <div className="field"><label htmlFor="afternoon-start">Início da tarde</label>
+                    <input id="afternoon-start" type="time" required value={draft.settings.afternoon_start}
+                      onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, afternoon_start: event.target.value } }))} /></div>
+                  <div className="field"><label htmlFor="afternoon-end">Fim da tarde</label>
+                    <input id="afternoon-end" type="time" required value={draft.settings.afternoon_end}
+                      onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, afternoon_end: event.target.value } }))} /></div>
+                </div>
+                <p className="hint">O período integral combina o início da manhã com o fim da tarde. Os intervalos não podem se sobrepor.</p>
+              </fieldset>
+            )}
+            {draft.booking_mode === 'stay' && (
+              <fieldset className="service-booking-settings stack-sm">
+                <legend>Horários permitidos para hospedagem</legend>
+                <div className="field"><label htmlFor="stay-check-in-times">Opções de entrada</label>
+                  <input id="stay-check-in-times" type="text" required placeholder="08:00, 20:00"
+                    value={draft.settings.check_in_times}
+                    onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, check_in_times: event.target.value } }))} />
+                  <span className="hint">Separe os horários com vírgula, no formato HH:MM.</span></div>
+                <div className="field"><label htmlFor="stay-check-out-times">Opções de saída</label>
+                  <input id="stay-check-out-times" type="text" required placeholder="08:00, 20:00"
+                    value={draft.settings.check_out_times}
+                    onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, check_out_times: event.target.value } }))} />
+                  <span className="hint">As saídas também precisam respeitar a duração de 24 horas + períodos de 12 horas.</span></div>
+              </fieldset>
+            )}
             <fieldset className="service-size-options">
-              <legend>{draft.booking_mode === 'daily' ? 'Portes atendidos e preço da diária' : 'Portes atendidos, preço e duração'}</legend>
+              <legend>{draft.booking_mode === 'periods'
+                ? 'Portes atendidos e preços dos períodos'
+                : ['daily', 'stay'].includes(draft.booking_mode)
+                  ? 'Portes atendidos e preço da diária'
+                  : 'Portes atendidos, preço e duração'}</legend>
               {activeSizes.map((size) => {
-                const option = draft.options[size.code] ?? { id: null, price: '', duration: '30', enabled: false }
+                const option = draft.options[size.code] ?? {
+                  id: null, price: '', morning_price: '', afternoon_price: '', full_day_price: '',
+                  duration: '30', enabled: false,
+                }
                 return <div className="service-size-editor" key={size.code}>
                   <label className="consent"><input type="checkbox" checked={option.enabled}
                     onChange={(event) => updateOption(size.code, 'enabled', event.target.checked)} /><span>{size.name}</span></label>
                   {option.enabled && <div className="size-price-duration" data-mode={draft.booking_mode}>
-                    <div className="field"><label htmlFor={`price-${size.code}`}>{draft.booking_mode === 'daily' ? 'Preço da diária (R$)' : 'Preço (R$)'}</label>
-                      <input id={`price-${size.code}`} type="text" inputMode="decimal" placeholder={draft.booking_mode === 'daily' ? '90,00' : '45,00'} required
+                    {draft.booking_mode === 'periods' ? <>
+                      <div className="field"><label htmlFor={`morning-price-${size.code}`}>Preço da manhã (R$)</label>
+                        <input id={`morning-price-${size.code}`} type="text" inputMode="decimal" required
+                          value={option.morning_price} onChange={(event) => updateOption(size.code, 'morning_price', event.target.value)} /></div>
+                      <div className="field"><label htmlFor={`afternoon-price-${size.code}`}>Preço da tarde (R$)</label>
+                        <input id={`afternoon-price-${size.code}`} type="text" inputMode="decimal" required
+                          value={option.afternoon_price} onChange={(event) => updateOption(size.code, 'afternoon_price', event.target.value)} /></div>
+                      <div className="field"><label htmlFor={`full-day-price-${size.code}`}>Preço integral (R$)</label>
+                        <input id={`full-day-price-${size.code}`} type="text" inputMode="decimal" required
+                          value={option.full_day_price} onChange={(event) => updateOption(size.code, 'full_day_price', event.target.value)} /></div>
+                    </> : <>
+                    <div className="field"><label htmlFor={`price-${size.code}`}>{['daily', 'stay'].includes(draft.booking_mode) ? 'Preço da diária (R$)' : 'Preço (R$)'}</label>
+                      <input id={`price-${size.code}`} type="text" inputMode="decimal" placeholder={['daily', 'stay'].includes(draft.booking_mode) ? '90,00' : '45,00'} required
                         value={option.price} onChange={(event) => updateOption(size.code, 'price', event.target.value)} /></div>
-                    {draft.booking_mode !== 'daily' && <div className="field"><label htmlFor={`duration-${size.code}`}>Tempo (min)</label>
+                    {draft.booking_mode === 'hourly' && <div className="field"><label htmlFor={`duration-${size.code}`}>Tempo (min)</label>
                       <input id={`duration-${size.code}`} type="number" min="5" max="720" step="1" required
                         value={option.duration} onChange={(event) => updateOption(size.code, 'duration', event.target.value)} /></div>}
+                    </>}
                   </div>}
                 </div>
               })}
             </fieldset>
-            <p className="hint">{draft.booking_mode === 'daily'
-              ? 'Serviços por diária não usam horários: o cliente escolhe entrada e saída no link público e o preço é cobrado por diária. As vagas do hotel são independentes da agenda de horários.'
-              : 'O tempo configurado é usado pelo banco para reservar o intervalo correto na agenda.'}</p>
+            <p className="hint">{draft.booking_mode === 'periods'
+              ? 'Cada período possui preço próprio e até quatro pets podem ocupar simultaneamente cada intervalo.'
+              : draft.booking_mode === 'stay'
+                ? 'O banco valida as durações em intervalos de 12 horas e calcula uma diária mínima. A capacidade é independente da agenda.'
+                : draft.booking_mode === 'daily'
+                  ? 'Este serviço mantém o fluxo de hospedagem antigo, baseado em datas e diárias.'
+                  : 'O tempo configurado é usado pelo banco para reservar o intervalo correto na agenda.'}</p>
             <ErrorNotice>{serviceError}</ErrorNotice>
             <button className="btn btn-primary" type="submit" disabled={savingService || state.categories.length === 0}>
               {savingService ? 'Salvando serviço…' : 'Salvar serviço'}

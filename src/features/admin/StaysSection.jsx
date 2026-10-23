@@ -3,9 +3,9 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Notice from '../../components/Notice.jsx'
 import { listAdminStaysOnDate, setAdminStayStatus } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
-import { formatBRL, todayInTz } from '../../lib/format.js'
+import { formatBRL, formatInstant, todayInTz } from '../../lib/format.js'
 import { formatShortDate, nightsLabel } from '../public-booking/stayDates.js'
-import { STAY_PHASE_LABELS, canCompleteStay, occupiedOnNight, stayPhase } from './stayView.js'
+import { STAY_PHASE_LABELS, canCompleteStay, stayPhase } from './stayView.js'
 
 // Hospedagens (pet hotel) que entram, saem ou estao hospedadas na data. Independe da agenda de horarios.
 export default function StaysSection({ business, date }) {
@@ -45,14 +45,12 @@ export default function StaysSection({ business, date }) {
   }
 
   const stays = state.status === 'ready' ? state.stays : []
-  const occupied = occupiedOnNight(stays, date)
-
   return (
     <section className="stay-admin stack-sm" aria-labelledby="stay-admin-title">
       <div className="stay-admin-heading">
         <h2 id="stay-admin-title">Hospedagem</h2>
         {state.status === 'ready' && (
-          <span className="calendar-count">{occupied} {occupied === 1 ? 'pet hospedado' : 'pets hospedados'} na noite</span>
+          <span className="calendar-count">{stays.length} {stays.length === 1 ? 'reserva' : 'reservas'} na data</span>
         )}
       </div>
       {notice && <Notice>{notice}</Notice>}
@@ -75,8 +73,12 @@ export default function StaysSection({ business, date }) {
                 </span>
               </div>
               <p className="stay-admin-meta">
-                <span>{formatShortDate(stay.check_in)} → {formatShortDate(stay.check_out)}</span>
-                <span>{nightsLabel(stay.nights)}</span>
+                <span>{stay.check_in_at
+                  ? `${formatInstant(stay.check_in_at, business.timezone).date} ${formatInstant(stay.check_in_at, business.timezone).time} → ${formatInstant(stay.check_out_at, business.timezone).date} ${formatInstant(stay.check_out_at, business.timezone).time}`
+                  : `${formatShortDate(stay.check_in)} → ${formatShortDate(stay.check_out)}`}</span>
+                <span>{stay.charge_units != null
+                  ? `${stay.charge_units} ${stay.charge_units === 1 ? 'diária cobrada' : 'diárias cobradas'}`
+                  : nightsLabel(stay.nights)}</span>
                 <strong>{formatBRL(stay.total_price_cents)}</strong>
                 <a href={`tel:${stay.customer_phone}`}>{stay.customer_phone}</a>
               </p>
@@ -109,7 +111,7 @@ export default function StaysSection({ business, date }) {
         open={Boolean(target)}
         title={target?.kind === 'cancel' ? 'Cancelar esta hospedagem?' : 'Concluir esta hospedagem?'}
         description={target
-          ? `${target.stay.pet_name} · ${formatShortDate(target.stay.check_in)} → ${formatShortDate(target.stay.check_out)} (${nightsLabel(target.stay.nights)}). ${target.kind === 'cancel'
+          ? `${target.stay.pet_name} · ${formatShortDate(target.stay.check_in)} → ${formatShortDate(target.stay.check_out)} (${target.stay.charge_units ?? target.stay.nights} diárias). ${target.kind === 'cancel'
             ? 'A vaga será liberada e o cancelamento não pode ser desfeito.'
             : 'A hospedagem permanecerá registrada como concluída.'}`
           : ''}

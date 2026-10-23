@@ -10,6 +10,7 @@ import { initialForm } from './bookingReducer.js'
 import { saveStayConfirmation } from './StayConfirmedPage.jsx'
 import StepDetails from './StepDetails.jsx'
 import { findSelectedService } from './serviceSelection.js'
+import TimedStayPage from './TimedStayPage.jsx'
 import {
   MAX_STAY_NIGHTS, STAY_DATE_MESSAGES, nightsLabel, validateStayDates,
 } from './stayDates.js'
@@ -23,7 +24,7 @@ export default function StayPage() {
   const h1 = useFocusOnMount()
   const optionId = location.state?.optionId ?? null
   const selected = useMemo(
-    () => findSelectedService(services.filter((service) => service.booking_mode === 'daily'), optionId),
+    () => findSelectedService(services.filter((service) => ['daily', 'stay'].includes(service.booking_mode)), optionId),
     [services, optionId],
   )
   const today = todayInTz(business.timezone)
@@ -46,7 +47,7 @@ export default function StayPage() {
 
   // Consulta o banco (vagas, diarias e valor) sempre que as datas mudam.
   useEffect(() => {
-    if (!selected || dateError) {
+    if (!selected || selected.service.booking_mode === 'stay' || dateError) {
       setQuote({ status: 'idle' })
       return undefined
     }
@@ -59,6 +60,7 @@ export default function StayPage() {
   }, [slug, selected, checkIn, checkOut, dateError, refresh])
 
   if (!selected) return <Navigate to={`/${slug}`} replace />
+  if (selected.service.booking_mode === 'stay') return <TimedStayPage />
 
   const maxCheckIn = addDaysYmd(today, business.max_days_ahead)
   const minCheckOut = addDaysYmd(checkIn || today, 1)

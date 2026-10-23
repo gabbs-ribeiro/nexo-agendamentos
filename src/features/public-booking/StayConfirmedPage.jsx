@@ -36,8 +36,8 @@ export default function StayConfirmedPage() {
         </div>
         <div className="ticket-body">
           <dl>
-            <dt>Entrada</dt><dd>{formatLongDate(stay.check_in)}</dd>
-            <dt>Saída</dt><dd>{formatLongDate(stay.check_out)}</dd>
+            <dt>Entrada</dt><dd>{formatLongDate(stay.check_in)}{stay.check_in_time ? ` às ${stay.check_in_time}` : ''}</dd>
+            <dt>Saída</dt><dd>{formatLongDate(stay.check_out)}{stay.check_out_time ? ` às ${stay.check_out_time}` : ''}</dd>
           </dl>
         </div>
         <div className="ticket-tear" aria-hidden="true" />
@@ -45,7 +45,10 @@ export default function StayConfirmedPage() {
           <dl>
             <dt>Serviço</dt><dd>{stay.service_name}</dd>
             <dt>Porte</dt><dd>{stay.size_label}</dd>
-            <dt>Diárias</dt><dd>{nightsLabel(stay.nights)} × {formatBRL(stay.daily_price_cents)}</dd>
+            <dt>{stay.charge_units != null ? 'Duração cobrada' : 'Diárias'}</dt>
+            <dd>{stay.charge_units != null
+              ? `${stay.charge_units} ${stay.charge_units === 1 ? 'diária' : 'diárias'} × ${formatBRL(stay.daily_price_cents)}`
+              : `${nightsLabel(stay.nights)} × ${formatBRL(stay.daily_price_cents)}`}</dd>
             <dt>Valor total</dt><dd>{formatBRL(stay.total_price_cents)}</dd>
             <dt>Código</dt><dd className="ref">{String(stay.booking_ref).slice(0, 8).toUpperCase()}</dd>
           </dl>

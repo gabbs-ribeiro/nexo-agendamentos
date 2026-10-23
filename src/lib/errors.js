@@ -2,7 +2,9 @@
 // Nunca exibir texto bruto vindo do banco ou da rede.
 export const ERROR_MESSAGES = {
   SLOT_UNAVAILABLE: 'Esse horário acabou de ser ocupado. Escolha outro horário.',
-  STAY_FULL: 'Essas datas acabaram de esgotar. Escolha outras datas ou fale com o estabelecimento.',
+  STAY_FULL: 'A hospedagem acabou de esgotar nesse período. Escolha outras datas ou horários.',
+  DAYCARE_FULL: 'Este período acabou de atingir a capacidade máxima. Escolha outro período ou dia.',
+  INVALID_TIME_OPTIONS: 'A entrada passou ou a saída não corresponde a uma opção permitida. Ajuste o período e tente novamente.',
   SERVICE_UNAVAILABLE: 'Este serviço não está disponível no momento.',
   LIMIT_REACHED: 'Este telefone já tem o máximo de agendamentos futuros. Fale diretamente com o estabelecimento.',
   CONSENT_REQUIRED: 'Aceite o aviso de privacidade para continuar.',

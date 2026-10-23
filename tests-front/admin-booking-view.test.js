@@ -7,6 +7,7 @@ import {
   dateRangeInTimezone,
   dateInTimezone,
 } from '../src/features/admin/bookingView.js'
+import { canCompleteStay } from '../src/features/admin/stayView.js'
 
 const booking = {
   service_name: 'Banho original',
@@ -55,4 +56,16 @@ test('só permite concluir agendamento confirmado depois do término', () => {
 
 test('porte personalizado usa snapshot do agendamento em vez do nome atual no catalogo', () => {
   assert.equal(bookingDetails({ ...booking, size: 'extra-grande-abc123', size_label: 'Gigante' }, 'America/Sao_Paulo').size, 'Gigante')
+})
+
+test('hospedagem temporizada só pode ser concluída após o horário exato de saída', () => {
+  const stay = {
+    status: 'confirmed',
+    check_out: '2026-10-24',
+    check_out_at: '2026-10-24T20:00:00.000Z',
+  }
+  const checkout = Date.parse(stay.check_out_at)
+  assert.equal(canCompleteStay(stay, '2026-10-24', new Date(checkout - 1)), false)
+  assert.equal(canCompleteStay(stay, '2026-10-24', new Date(checkout)), true)
+  assert.equal(canCompleteStay({ ...stay, status: 'completed' }, '2026-10-24', new Date(checkout)), false)
 })

@@ -19,6 +19,7 @@ import BookingList from './BookingList.jsx'
 import BookingShareCard from './BookingShareCard.jsx'
 import ManualBookingDialog from './ManualBookingDialog.jsx'
 import StaysSection from './StaysSection.jsx'
+import DaycareSection from './DaycareSection.jsx'
 
 function greeting(timezone) {
   const hour = Number(new Intl.DateTimeFormat('en-US', {
@@ -312,6 +313,7 @@ export default function AgendaPage({ view }) {
       )}
 
       <StaysSection business={business} date={date} />
+      <DaycareSection business={business} date={date} />
 
       {isHome && <BookingShareCard slug={business.slug} businessName={business.name} />}
 

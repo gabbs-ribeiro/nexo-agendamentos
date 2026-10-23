@@ -19,8 +19,8 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState(null)
 
-  // Servicos por diaria nao usam este fluxo (dia + horario); o banco tambem os recusa.
-  const services = useMemo(() => catalog.filter((service) => service.booking_mode !== 'daily'), [catalog])
+  // Este fluxo só oferece serviços que usam a agenda por horário.
+  const services = useMemo(() => catalog.filter((service) => service.booking_mode === 'hourly'), [catalog])
 
   const selected = useMemo(() => {
     for (const service of services) {

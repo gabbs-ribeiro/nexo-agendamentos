@@ -4,7 +4,7 @@
 
 ## Como rodar (SQL Editor do Supabase DEV, como `postgres`)
 1. Aplicar as migrations em ordem (`supabase/migrations/`). Em caso de erro, **pare e corrija a migration**; não improvise no painel.
-2. Rodar cada teste abaixo. Os de 01–03 rodam em transação com `ROLLBACK` (não deixam dados). Esperado: mensagens `PASS` e nenhuma exceção (um `ASSERTION FAILED`/`FAIL` indica problema real).
+2. Rodar cada teste abaixo. Os testes transacionais rodam com `ROLLBACK` (não deixam dados). Esperado: mensagens `PASS` e nenhuma exceção (um `ASSERTION FAILED`/`FAIL` indica problema real).
 3. Se o `insert into auth.users (id, email)` dos testes falhar por coluna obrigatória na sua versão do Supabase, ajuste só o `INSERT` de preparação (não as asserções).
 
 | # | Arquivo | O que prova | Esperado | Resultado |
@@ -19,6 +19,7 @@
 | 10 | `tests/10_business_hours_and_day_off.sql` | Múltiplos períodos por dia, atualização atômica (mantém horários anteriores ao rejeitar sobreposição), conflito de folga com agendamento e bloqueio no fuso do negócio | só PASS | ☐ executar após aplicar a migration 05 |
 | 11 | `tests/11_service_booking_mode.sql` | Serviço novo nasce por horário; valor inválido de modo é recusado; catálogo público devolve `booking_mode`; serviço por diária não oferece horários nem aceita reserva (admin e público); serviço por horário segue reservando; `anon` não altera o modo | só PASS | ☐ executar após aplicar a migration `20261022000001` |
 | 12 | `tests/12_pet_hotel_stays.sql` | Capacidade 4; 5ª estadia esgota (`STAY_FULL`); noite da saída não conta; idempotência; hotel lotado não bloqueia banho e tosa e folga da agenda não bloqueia hotel; limite por telefone; datas inválidas; snapshot de preço; cancelar libera vaga; sem escrita direta; isolamento entre negócios; anon sem acesso | só PASS | ☐ executar após a migration `20261022000002` |
+| 13 | `tests/13_service_booking_models.sql` | Creche por manhã/tarde/integral, capacidade máxima de quatro em cada intervalo, preços por período, idempotência; hospedagem com opções de saída configuradas, 24h/36h cobrados corretamente, duração arbitrária recusada e capacidade máxima de quatro | só PASS | ☐ executar após a migration `20261023000001` |
 
 No DEV, o responsável confirmou que as migrations 06 e 07 foram aplicadas e executou o teste 09. As verificações de catálogo avançaram; a falha atual indica que `get_available_slots` não filtrou o porte desativado. A migration `20261021000008_restore_active_size_slot_filter.sql` restaura esse filtro; aplique-a somente no DEV e rode novamente o teste 09, que verifica também a rejeição da reserva para a opção inativa. O schema `supabase_migrations.schema_migrations` não existe porque o projeto foi atualizado manualmente pelo SQL Editor; isso não informa quais scripts já foram executados. Confira o estado antes de reaplicar migrations. A migration 05 requer a 04; aplique/valide pendências e rode também 01, 04 e 10. As migrations `20261022000001` e `20261022000002` exigem as anteriores até a 08; depois delas rode 12, 11, 04 e 09. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não reaplique migrations não idempotentes sem conferir o schema.
 
@@ -42,7 +43,7 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 55 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente e elegibilidade para concluir. Última execução nesta entrega: `# pass 55`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 53 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente, novos modelos e seleção de preço por período. Última execução: `# pass 53`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -107,3 +108,14 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Entrar no dia da saída de outra estadia lotada tem vaga; banho e tosa continua disponível no mesmo dia com o hotel lotado.
 - [ ] Painel (Início e Calendário): seção “Hospedagem” lista entradas, saídas e hospedados; cancelar libera a vaga; concluir só aparece a partir do dia da saída.
 - [ ] Teclado e leitor de tela nos campos de data; sem rolagem horizontal em 375 px.
+
+**Novos modelos de serviço (manual no navegador, DEV, após a migration 20261023000001):**
+- [ ] Controle → Serviços: criar e editar modelos por horário, por período e entrada/saída; o modelo por horário mantém duração/preço atuais.
+- [ ] Períodos: editar manhã/tarde, validar que integral combina o primeiro horário da manhã com o fim da tarde e definir três preços por porte; faixas sobrepostas não são aceitas.
+- [ ] Página pública: manhã, tarde e integral exibem os horários configurados e seus preços; quatro vagas da manhã não bloqueiam quatro vagas da tarde.
+- [ ] Duas reservas integrais e duas matinais completam a capacidade da manhã, mas mantêm duas vagas na tarde; uma nova reserva integral é recusada pelo banco se qualquer período estiver cheio.
+- [ ] Hospedagem: opções de entrada/saída vêm do Controle; só aparecem saídas compatíveis com os horários permitidos e com a progressão de 24 horas + incrementos de 12 horas.
+- [ ] Cobrança: menos de 24 h e 24 h cobram uma diária; 36 h cobram 1,5; 48 h cobram 2; duração fora da progressão não é apresentada.
+- [ ] Quatro estadias sobrepostas ocupam a capacidade do hotel; a quinta é recusada; cancelar libera uma vaga sem afetar a capacidade independente da creche.
+- [ ] Confirmação e painel mostram horários no fuso do negócio; o painel permite cancelar/concluir reserva de creche e hospedagem sem expor dados a outro negócio.
+- [ ] Testar conflito concorrente com duas confirmações simultâneas por período e por hospedagem; o banco nunca ultrapassa quatro vagas.
