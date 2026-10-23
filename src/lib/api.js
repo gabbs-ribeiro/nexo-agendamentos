@@ -382,7 +382,7 @@ export async function listBusinessCatalog(businessId) {
       .select('id, business_id, service_id, size, price_cents, duration_minutes, morning_price_cents, afternoon_price_cents, full_day_price_cents, is_active')
       .eq('business_id', businessId),
     supabase.from('service_booking_settings')
-      .select('service_id, business_id, morning_start, morning_end, afternoon_start, afternoon_end, check_in_times, check_out_times')
+      .select('service_id, business_id, morning_start, morning_end, afternoon_start, afternoon_end, check_in_start, check_in_end, check_out_start, check_out_end')
       .eq('business_id', businessId),
   ])
   throwIfApiError(sizesResult.error, 'business sizes select')
@@ -481,6 +481,10 @@ export async function saveServiceCategory(businessId, category) {
   if (!result.data) throw new ApiError('AUTH_ACCESS_DENIED')
 }
 
+export async function deleteServiceCategory(categoryId) {
+  await adminRpc('admin_delete_service_category', { p_category_id: categoryId })
+}
+
 export async function saveService(businessId, service, options, settings) {
   const bookingMode = ['daily', 'periods', 'stay'].includes(service.booking_mode)
     ? service.booking_mode
@@ -559,5 +563,16 @@ export async function archiveService(businessId, serviceId) {
     .select('id')
     .maybeSingle()
   throwIfApiError(error, 'service archive')
+  if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
+}
+
+export async function reactivateService(businessId, serviceId) {
+  const { data, error } = await supabase.from('services')
+    .update({ is_active: true, archived_at: null })
+    .eq('business_id', businessId)
+    .eq('id', serviceId)
+    .select('id')
+    .maybeSingle()
+  throwIfApiError(error, 'service reactivate')
   if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
 }

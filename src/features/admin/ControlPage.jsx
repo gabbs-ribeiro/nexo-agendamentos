@@ -4,18 +4,21 @@ import ControlBar, { IconClock, IconList, IconProfile, IconSizes, IconTag } from
 import Notice from '../../components/Notice.jsx'
 import {
   archiveService,
+  deleteServiceCategory,
   getBusinessControl,
   listBusinessCatalog,
   removeBusinessLogo,
   saveBusinessSize,
   saveServiceCategory,
   saveService,
+  reactivateService,
   setBusinessSizeActive,
   updateBusinessProfile,
   uploadBusinessLogo,
 } from '../../lib/api.js'
 import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
 import { digitsOnly, formatBRL, isValidPhone, maskPhone } from '../../lib/format.js'
+import { parseTimeRange } from '../../lib/timeRanges.js'
 import { useAdminBusiness, useUpdateAdminBusiness } from './AdminBusinessContext.jsx'
 import BusinessHoursSection from './BusinessHoursSection.jsx'
 import { countLabel } from './controlSummary.js'
@@ -26,7 +29,6 @@ import {
   isDailyService,
   isValidPeriodSettings,
   normalizeBookingMode,
-  parseTimeOptions,
   priceToCents,
   resolveDurationMinutes,
   sizeCodeForName,
@@ -48,8 +50,10 @@ function newDraft(sizes, categories) {
       morning_end: '',
       afternoon_start: '',
       afternoon_end: '',
-      check_in_times: '',
-      check_out_times: '',
+      check_in_start: '',
+      check_in_end: '',
+      check_out_start: '',
+      check_out_end: '',
     },
     options: Object.fromEntries(sizes.map((size) => [size.code, {
       id: null,
@@ -158,8 +162,10 @@ export default function ControlPage() {
         morning_end: service.settings?.morning_end?.slice(0, 5) ?? '',
         afternoon_start: service.settings?.afternoon_start?.slice(0, 5) ?? '',
         afternoon_end: service.settings?.afternoon_end?.slice(0, 5) ?? '',
-        check_in_times: (service.settings?.check_in_times ?? []).map((time) => time.slice(0, 5)).join(', '),
-        check_out_times: (service.settings?.check_out_times ?? []).map((time) => time.slice(0, 5)).join(', '),
+        check_in_start: service.settings?.check_in_start?.slice(0, 5) ?? '',
+        check_in_end: service.settings?.check_in_end?.slice(0, 5) ?? '',
+        check_out_start: service.settings?.check_out_start?.slice(0, 5) ?? '',
+        check_out_end: service.settings?.check_out_end?.slice(0, 5) ?? '',
       },
       options,
     })
@@ -380,12 +386,14 @@ export default function ControlPage() {
           afternoon_end: draft.settings.afternoon_end,
         }
       } else if (draft.booking_mode === 'stay') {
-        const checkInTimes = parseTimeOptions(draft.settings.check_in_times)
-        const checkOutTimes = parseTimeOptions(draft.settings.check_out_times)
-        if (!checkInTimes || !checkOutTimes) throw new Error('validation')
+        const checkIn = parseTimeRange(draft.settings.check_in_start, draft.settings.check_in_end)
+        const checkOut = parseTimeRange(draft.settings.check_out_start, draft.settings.check_out_end)
+        if (!checkIn || !checkOut) throw new Error('validation')
         bookingSettings = {
-          check_in_times: checkInTimes,
-          check_out_times: checkOutTimes,
+          check_in_start: checkIn.start,
+          check_in_end: checkIn.end,
+          check_out_start: checkOut.start,
+          check_out_end: checkOut.end,
         }
       }
       await saveService(business.id, {
@@ -444,6 +452,38 @@ export default function ControlPage() {
       setConfirmAction(null)
       setDraft(null)
       setServiceNotice('Serviço arquivado. Agendamentos anteriores foram preservados.')
+      await load()
+    } catch (error) {
+      setConfirmError(messageFor(error))
+    } finally {
+      setConfirmBusy(false)
+    }
+  }
+
+  async function confirmServiceReactivate() {
+    if (!confirmAction || confirmBusy) return
+    setConfirmBusy(true)
+    setConfirmError('')
+    try {
+      await reactivateService(business.id, confirmAction.id)
+      setConfirmAction(null)
+      setServiceNotice('Serviço reativado e disponível para novas reservas.')
+      await load()
+    } catch (error) {
+      setConfirmError(messageFor(error))
+    } finally {
+      setConfirmBusy(false)
+    }
+  }
+
+  async function confirmCategoryDelete() {
+    if (!confirmAction || confirmBusy) return
+    setConfirmBusy(true)
+    setConfirmError('')
+    try {
+      await deleteServiceCategory(confirmAction.id)
+      setConfirmAction(null)
+      setCategoryNotice('Categoria excluída.')
       await load()
     } catch (error) {
       setConfirmError(messageFor(error))
@@ -546,8 +586,9 @@ export default function ControlPage() {
         <ErrorNotice>{categoryError}</ErrorNotice>
         <div className="category-admin-list">
           {state.categories.map((category) => {
-            const count = state.services.filter((service) => service.category_id === category.id
-              && service.is_active && !service.archived_at).length
+              const linkedCount = state.services.filter((service) => service.category_id === category.id).length
+              const count = state.services.filter((service) => service.category_id === category.id
+                && service.is_active && !service.archived_at).length
             return (
               <article className="category-admin-card" key={category.id}>
                 <div>
@@ -560,6 +601,12 @@ export default function ControlPage() {
                   setCategoryError('')
                   setCategoryNotice('')
                 }}>Editar categoria</button>
+                <button className="btn-text" type="button" disabled={linkedCount > 0} title={linkedCount > 0 ? 'Mova ou exclua todos os serviços vinculados antes.' : undefined}
+                  onClick={() => {
+                    setConfirmError('')
+                    setConfirmAction({ kind: 'category', id: category.id, name: category.name })
+                  }}>Excluir categoria</button>
+                {linkedCount > 0 && <span className="hint">Mova os {linkedCount} serviços vinculados antes de excluir.</span>}
               </article>
             )
           })}
@@ -601,12 +648,22 @@ export default function ControlPage() {
                         return <li key={option.id}><span>{size?.name ?? option.size}</span><span>{service.booking_mode === 'periods' ? periodSummary : daily ? 'por diária' : `${option.duration_minutes} min`}</span>{service.booking_mode !== 'periods' && <strong>{formatBRL(option.price_cents)}</strong>}</li>
                       })}
                     </ul>
-                    {!service.archived_at && <div className="service-card-actions">
+                    <div className="service-card-actions">
+                      {service.archived_at
+                        ? <>
+                          <button className="btn btn-quiet" type="button" onClick={() => editService(service)}>Editar</button>
+                          <button className="btn btn-quiet" type="button" onClick={() => {
+                            setConfirmError('')
+                            setConfirmAction({ kind: 'service-reactivate', id: service.id, name: service.name })
+                          }}>Reativar serviço</button>
+                        </>
+                        : <>
                       <button className="btn btn-quiet" type="button" onClick={() => editService(service)}>Editar</button>
                       <button className="btn-text" type="button" onClick={() => {
                         setConfirmError(''); setConfirmAction({ kind: 'service', id: service.id, name: service.name })
                       }}>Arquivar</button>
-                    </div>}
+                        </>}
+                    </div>
                   </article>
                 ))}
               </div>}
@@ -688,17 +745,26 @@ export default function ControlPage() {
             )}
             {draft.booking_mode === 'stay' && (
               <fieldset className="service-booking-settings stack-sm">
-                <legend>Horários permitidos para hospedagem</legend>
-                <div className="field"><label htmlFor="stay-check-in-times">Opções de entrada</label>
-                  <input id="stay-check-in-times" type="text" required placeholder="08:00, 20:00"
-                    value={draft.settings.check_in_times}
-                    onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, check_in_times: event.target.value } }))} />
-                  <span className="hint">Separe os horários com vírgula, no formato HH:MM.</span></div>
-                <div className="field"><label htmlFor="stay-check-out-times">Opções de saída</label>
-                  <input id="stay-check-out-times" type="text" required placeholder="08:00, 20:00"
-                    value={draft.settings.check_out_times}
-                    onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, check_out_times: event.target.value } }))} />
-                  <span className="hint">As saídas também precisam respeitar a duração de 24 horas + períodos de 12 horas.</span></div>
+                <legend>Intervalos de entrada e saída</legend>
+                <div className="stay-dates">
+                  <div className="field"><label htmlFor="stay-check-in-start">Início das entradas</label>
+                    <input id="stay-check-in-start" type="time" required
+                      value={draft.settings.check_in_start}
+                      onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, check_in_start: event.target.value } }))} /></div>
+                  <div className="field"><label htmlFor="stay-check-in-end">Fim das entradas</label>
+                    <input id="stay-check-in-end" type="time" required
+                      value={draft.settings.check_in_end}
+                      onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, check_in_end: event.target.value } }))} /></div>
+                  <div className="field"><label htmlFor="stay-check-out-start">Início das saídas</label>
+                    <input id="stay-check-out-start" type="time" required
+                      value={draft.settings.check_out_start}
+                      onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, check_out_start: event.target.value } }))} /></div>
+                  <div className="field"><label htmlFor="stay-check-out-end">Fim das saídas</label>
+                    <input id="stay-check-out-end" type="time" required
+                      value={draft.settings.check_out_end}
+                      onChange={(event) => setDraft((current) => ({ ...current, settings: { ...current.settings, check_out_end: event.target.value } }))} /></div>
+                </div>
+                <span className="hint">O cliente escolhe horários a cada 30 minutos dentro desses intervalos. A saída será após 12, 24, 36 horas ou múltiplos de 12 horas.</span>
               </fieldset>
             )}
             <fieldset className="service-size-options">
@@ -741,7 +807,7 @@ export default function ControlPage() {
             <p className="hint">{draft.booking_mode === 'periods'
               ? 'Cada período possui preço próprio e até quatro pets podem ocupar simultaneamente cada intervalo.'
               : draft.booking_mode === 'stay'
-                ? 'O banco valida as durações em intervalos de 12 horas e calcula uma diária mínima. A capacidade é independente da agenda.'
+                ? '12 horas custam meia diária; cada bloco adicional de 12 horas soma meia diária. A capacidade é independente da agenda.'
                 : draft.booking_mode === 'daily'
                   ? 'Este serviço mantém o fluxo de hospedagem antigo, baseado em datas e diárias.'
                   : 'O tempo configurado é usado pelo banco para reservar o intervalo correto na agenda.'}</p>
@@ -783,17 +849,37 @@ export default function ControlPage() {
 
       <ConfirmDialog
         open={Boolean(confirmAction)}
-        title={confirmAction?.kind === 'service'
-          ? `Arquivar o serviço “${confirmAction?.name}”?`
-          : `${confirmAction?.is_active ? 'Desativar' : 'Reativar'} o porte “${confirmAction?.name}”?`}
-        description={confirmAction?.kind === 'service'
-          ? 'Ele deixará de aparecer para novas reservas. Agendamentos antigos continuarão preservados.'
-          : 'Essa alteração afeta quais portes podem ser reservados em todos os serviços.'}
-        confirmLabel={confirmAction?.kind === 'service' ? 'Sim, arquivar serviço' : confirmAction?.is_active ? 'Sim, desativar porte' : 'Sim, reativar porte'}
+        title={confirmAction?.kind === 'category'
+          ? `Excluir a categoria “${confirmAction?.name}”?`
+          : confirmAction?.kind === 'service'
+            ? `Arquivar o serviço “${confirmAction?.name}”?`
+            : confirmAction?.kind === 'service-reactivate'
+              ? `Reativar o serviço “${confirmAction?.name}”?`
+              : `${confirmAction?.is_active ? 'Desativar' : 'Reativar'} o porte “${confirmAction?.name}”?`}
+        description={confirmAction?.kind === 'category'
+          ? 'A categoria só pode ser excluída quando não tiver serviços vinculados.'
+          : confirmAction?.kind === 'service'
+            ? 'Ele deixará de aparecer para novas reservas. Agendamentos antigos continuarão preservados.'
+            : confirmAction?.kind === 'service-reactivate'
+              ? 'O serviço voltará a aparecer para novas reservas. Agendamentos antigos serão preservados.'
+              : 'Essa alteração afeta quais portes podem ser reservados em todos os serviços.'}
+        confirmLabel={confirmAction?.kind === 'category'
+          ? 'Sim, excluir categoria'
+          : confirmAction?.kind === 'service'
+            ? 'Sim, arquivar serviço'
+            : confirmAction?.kind === 'service-reactivate'
+              ? 'Sim, reativar serviço'
+              : confirmAction?.is_active ? 'Sim, desativar porte' : 'Sim, reativar porte'}
         busy={confirmBusy}
         error={confirmError}
         onCancel={() => { setConfirmAction(null); setConfirmError('') }}
-        onConfirm={confirmAction?.kind === 'service' ? confirmServiceArchive : () => toggleSize(confirmAction)}
+        onConfirm={confirmAction?.kind === 'category'
+          ? confirmCategoryDelete
+          : confirmAction?.kind === 'service'
+            ? confirmServiceArchive
+            : confirmAction?.kind === 'service-reactivate'
+              ? confirmServiceReactivate
+              : () => toggleSize(confirmAction)}
       />
     </div>
   )

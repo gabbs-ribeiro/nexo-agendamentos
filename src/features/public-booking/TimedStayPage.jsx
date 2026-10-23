@@ -8,6 +8,7 @@ import {
 } from '../../lib/format.js'
 import { initialForm } from './bookingReducer.js'
 import { saveStayConfirmation } from './StayConfirmedPage.jsx'
+import { timeOptionsInRange } from '../../lib/timeRanges.js'
 import StepDetails from './StepDetails.jsx'
 import { findSelectedService } from './serviceSelection.js'
 import { useFocusOnMount } from './useFocusOnMount.js'
@@ -33,9 +34,12 @@ export default function TimedStayPage() {
     [services, optionId],
   )
   const today = todayInTz(business.timezone)
-  const checkInTimes = selected?.service.booking_settings?.check_in_times ?? []
+  const settings = selected?.service.booking_settings
+  const checkInTimes = timeOptionsInRange(settings?.check_in_start, settings?.check_in_end)
+  const checkOutTimes = timeOptionsInRange(settings?.check_out_start, settings?.check_out_end)
   const [checkIn, setCheckIn] = useState('')
   const [entryTime, setEntryTime] = useState('')
+  const [checkOutDate, setCheckOutDate] = useState('')
   const [optionsState, setOptionsState] = useState({ status: 'idle' })
   const [selectedExit, setSelectedExit] = useState('')
   const [step, setStep] = useState('dates')
@@ -69,21 +73,25 @@ export default function TimedStayPage() {
       <Link className="btn btn-quiet" to={`/${slug}`}>Voltar aos serviços</Link>
     </div>
   }
-  if (checkInTimes.length === 0) {
+  if (checkInTimes.length === 0 || checkOutTimes.length === 0) {
     return <div className="stack">
       <Notice tone="error">O estabelecimento ainda não configurou horários de entrada.</Notice>
       <Link className="btn btn-quiet" to={`/${slug}`}>Voltar aos serviços</Link>
     </div>
   }
 
-  const options = optionsState.status === 'ready' ? optionsState.data.options : []
+  const options = optionsState.status === 'ready'
+    ? optionsState.data.options.filter((option) => option.check_out === checkOutDate)
+    : []
   const currentExit = options.find((option) => optionKey(option) === selectedExit)
   const canContinue = currentExit?.available === true
   const maxCheckIn = addDaysYmd(today, business.max_days_ahead)
+  const maxCheckOut = checkIn ? addDaysYmd(checkIn, 30) : ''
 
   function changeEntryDate(date) {
     setCheckIn(date)
     setSelectedExit('')
+    setCheckOutDate('')
     setNotice('')
     setKey(null)
   }
@@ -142,7 +150,7 @@ export default function TimedStayPage() {
         <div className="stack">
           <div className="stack-sm">
             <h1 ref={h1} tabIndex={-1}>Escolha a entrada e a saída</h1>
-            <p className="muted">As saídas disponíveis seguem a configuração do estabelecimento e os intervalos de 12 horas.</p>
+            <p className="muted">Escolha entrada e saída dentro dos intervalos do serviço. A saída ocorre em blocos de 12 horas.</p>
           </div>
           <div className="stay-dates">
             <div className="field">
@@ -160,19 +168,25 @@ export default function TimedStayPage() {
                 ))}
               </select>
             </div>
+            <div className="field">
+              <label htmlFor="timed-stay-check-out">Data de saída</label>
+              <input id="timed-stay-check-out" type="date" min={checkIn || today}
+                max={checkIn ? maxCheckOut : undefined} value={checkOutDate} disabled={!checkIn || !entryTime}
+                onChange={(event) => { setCheckOutDate(event.target.value); setSelectedExit(''); setKey(null) }} />
+            </div>
           </div>
           {notice && <Notice tone="error">{notice}</Notice>}
           {optionsState.status === 'loading' && <p className="status" role="status">Consultando saídas e vagas…</p>}
           {optionsState.status === 'error' && <Notice tone="error">{optionsState.message}</Notice>}
-          {optionsState.status === 'ready' && options.length === 0 && (
+          {optionsState.status === 'ready' && checkOutDate && options.length === 0 && (
             <Notice tone="error">
-              Não há horários de saída compatíveis com essa entrada e com os intervalos de duração permitidos.
-              Ajuste a entrada ou fale com o estabelecimento{wa ? <> pelo <a href={wa} target="_blank" rel="noopener noreferrer">WhatsApp</a></> : ''}.
+              Não há horários de saída permitidos para essa data dentro do intervalo do serviço.
+              Escolha outra data ou fale com o estabelecimento{wa ? <> pelo <a href={wa} target="_blank" rel="noopener noreferrer">WhatsApp</a></> : ''}.
             </Notice>
           )}
           {options.length > 0 && (
             <fieldset className="timed-stay-options">
-              <legend>Opções de saída</legend>
+              <legend>Horário de saída</legend>
               {options.map((option) => {
                 const keyForOption = optionKey(option)
                 const unavailable = !option.available
@@ -183,7 +197,7 @@ export default function TimedStayPage() {
                       disabled={unavailable}
                       onChange={() => setSelectedExit(keyForOption)} />
                     <span className="booking-mode-copy">
-                      <strong>{formatLongDate(option.check_out)} às {option.check_out_time}{unavailable ? ' · sem vaga' : ''}</strong>
+                      <strong>{option.check_out_time}{unavailable ? ' · sem vaga' : ''}</strong>
                       <small>{durationLabel(option.duration_hours)} · {option.charge_units} {option.charge_units === 1 ? 'diária cobrada' : 'diárias cobradas'}</small>
                     </span>
                     <strong>{formatBRL(option.total_price_cents)}</strong>

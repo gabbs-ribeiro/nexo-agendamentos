@@ -4,7 +4,6 @@ import {
   isValidPeriodSettings,
   isDailyService,
   normalizeBookingMode,
-  parseTimeOptions,
   resolveDurationMinutes,
 } from '../src/features/admin/serviceCatalog.js'
 
@@ -58,11 +57,4 @@ test('valida horários de período em ordem e sem sobreposição', () => {
     afternoon_start: '13:00',
     afternoon_end: '18:00',
   }), false)
-})
-
-test('converte opções de horário em lista única no formato HH:MM', () => {
-  assert.deepEqual(parseTimeOptions('08:00, 20:30'), ['08:00', '20:30'])
-  assert.equal(parseTimeOptions('08:00,08:00'), null)
-  assert.equal(parseTimeOptions('25:00'), null)
-  assert.equal(parseTimeOptions(''), null)
 })
