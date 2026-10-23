@@ -123,3 +123,13 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Quatro estadias sobrepostas ocupam a capacidade do hotel; a quinta é recusada; cancelar libera uma vaga sem afetar a capacidade independente da creche.
 - [ ] Confirmação e painel mostram horários no fuso do negócio; o painel permite cancelar/concluir reserva de creche e hospedagem sem expor dados a outro negócio.
 - [ ] Testar conflito concorrente com duas confirmações simultâneas por período e por hospedagem; o banco nunca ultrapassa quatro vagas.
+
+**Hospedagem por entrada/saída em cards (manual no navegador, DEV, com as migrations 20261023000001/2 aplicadas):**
+- [ ] Escolher o dia da entrada mostra os horários de entrada; hoje, os horários que já passaram ficam desabilitados.
+- [ ] Só depois do horário de entrada aparece o card “Saída”; escolher o dia da saída mostra os dois horários possíveis (mesmo horário da entrada e 12 h antes/depois).
+- [ ] Horário que ultrapassa a janela de retirada (ex.: entrada 15:00 gera 03:00) aparece em vermelho, não é selecionável e mostra a mensagem com a janela (ex.: 07:00 às 22:00).
+- [ ] Horário esgotado aparece em cinza, “Esgotado neste horário”; sem nenhuma opção na data, o aviso oferece o WhatsApp do estabelecimento.
+- [ ] O resumo mostra entrada, saída, diárias cobradas e total; o valor confere com o devolvido pelo banco; Continuar leva aos dados e a reserva confirma.
+- [ ] Trocar o horário ou o dia da entrada limpa a saída escolhida e o resumo.
+- [ ] Teclado (Tab/Enter nos dias, horários e cards de saída), foco visível e sem rolagem horizontal em 320 px.
+
