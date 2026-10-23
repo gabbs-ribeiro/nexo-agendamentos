@@ -44,7 +44,7 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 54 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente, modelos de agendamento e intervalos de horário. Última execução: `# pass 54`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 57 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente, modelos de agendamento e intervalos de horário. Última execução: `# pass 57`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -118,6 +118,7 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Página pública: manhã, tarde e integral exibem os horários configurados e seus preços; quatro vagas da manhã não bloqueiam quatro vagas da tarde.
 - [ ] Duas reservas integrais e duas matinais completam a capacidade da manhã, mas mantêm duas vagas na tarde; uma nova reserva integral é recusada pelo banco se qualquer período estiver cheio.
 - [ ] Hospedagem: escolher entrada (a cada 30 min desde o início da janela), data de saída e horário; o horário de saída deve corresponder à entrada após 12, 24, 36… horas e estar dentro da janela configurada.
+- [ ] Após escolher a última saída do dia, a tela avisa que não há mais opção para acrescentar 12h naquele dia e orienta a alterar a entrada ou escolher a próxima data de saída.
 - [ ] Cobrança: 12 h custam 0,5 diária; 24 h custam uma diária; 36 h custam 1,5; 48 h custam 2; duração fora da progressão não é apresentada.
 - [ ] Quatro estadias sobrepostas ocupam a capacidade do hotel; a quinta é recusada; cancelar libera uma vaga sem afetar a capacidade independente da creche.
 - [ ] Confirmação e painel mostram horários no fuso do negócio; o painel permite cancelar/concluir reserva de creche e hospedagem sem expor dados a outro negócio.

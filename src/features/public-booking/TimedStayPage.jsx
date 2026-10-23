@@ -9,6 +9,7 @@ import {
 import { initialForm } from './bookingReducer.js'
 import { saveStayConfirmation } from './StayConfirmedPage.jsx'
 import { timeOptionsInRange } from '../../lib/timeRanges.js'
+import { hasNoFurtherStayOptionThatDay } from './stayOptions.js'
 import StepDetails from './StepDetails.jsx'
 import { findSelectedService } from './serviceSelection.js'
 import { useFocusOnMount } from './useFocusOnMount.js'
@@ -84,6 +85,8 @@ export default function TimedStayPage() {
     ? optionsState.data.options.filter((option) => option.check_out === checkOutDate)
     : []
   const currentExit = options.find((option) => optionKey(option) === selectedExit)
+  const noFurtherOptionToday = optionsState.status === 'ready'
+    && hasNoFurtherStayOptionThatDay(optionsState.data.options, currentExit)
   const canContinue = currentExit?.available === true
   const maxCheckIn = addDaysYmd(today, business.max_days_ahead)
   const maxCheckOut = checkIn ? addDaysYmd(checkIn, 30) : ''
@@ -185,26 +188,33 @@ export default function TimedStayPage() {
             </Notice>
           )}
           {options.length > 0 && (
-            <fieldset className="timed-stay-options">
-              <legend>Horário de saída</legend>
-              {options.map((option) => {
-                const keyForOption = optionKey(option)
-                const unavailable = !option.available
-                return (
-                  <label className="booking-mode-option" key={keyForOption} data-checked={selectedExit === keyForOption}>
-                    <input type="radio" name="stay-exit-option" value={keyForOption}
-                      checked={selectedExit === keyForOption}
-                      disabled={unavailable}
-                      onChange={() => setSelectedExit(keyForOption)} />
-                    <span className="booking-mode-copy">
-                      <strong>{option.check_out_time}{unavailable ? ' · sem vaga' : ''}</strong>
-                      <small>{durationLabel(option.duration_hours)} · {option.charge_units} {option.charge_units === 1 ? 'diária cobrada' : 'diárias cobradas'}</small>
-                    </span>
-                    <strong>{formatBRL(option.total_price_cents)}</strong>
-                  </label>
-                )
-              })}
-            </fieldset>
+            <>
+              <fieldset className="timed-stay-options">
+                <legend>Horário de saída</legend>
+                {options.map((option) => {
+                  const keyForOption = optionKey(option)
+                  const unavailable = !option.available
+                  return (
+                    <label className="booking-mode-option" key={keyForOption} data-checked={selectedExit === keyForOption}>
+                      <input type="radio" name="stay-exit-option" value={keyForOption}
+                        checked={selectedExit === keyForOption}
+                        disabled={unavailable}
+                        onChange={() => setSelectedExit(keyForOption)} />
+                      <span className="booking-mode-copy">
+                        <strong>{option.check_out_time}{unavailable ? ' · sem vaga' : ''}</strong>
+                        <small>{durationLabel(option.duration_hours)} · {option.charge_units} {option.charge_units === 1 ? 'diária cobrada' : 'diárias cobradas'}</small>
+                      </span>
+                      <strong>{formatBRL(option.total_price_cents)}</strong>
+                    </label>
+                  )
+                })}
+              </fieldset>
+              {noFurtherOptionToday && (
+                <p className="hint" role="status">
+                  Não há mais opções de saída neste dia. Para estender a hospedagem por mais 12 horas, ajuste o horário de entrada ou acrescente mais uma diária escolhendo a próxima data de saída.
+                </p>
+              )}
+            </>
           )}
           {currentExit && (
             <section className="stay-total" aria-live="polite">
