@@ -21,7 +21,14 @@ import BusinessHoursSection from './BusinessHoursSection.jsx'
 import { countLabel } from './controlSummary.js'
 import ProfileHeader from './ProfileHeader.jsx'
 import { groupServicesByCategory } from './catalogCategories.js'
-import { priceToCents, sizeCodeForName } from './serviceCatalog.js'
+import {
+  BOOKING_MODE_LABELS,
+  isDailyService,
+  normalizeBookingMode,
+  priceToCents,
+  resolveDurationMinutes,
+  sizeCodeForName,
+} from './serviceCatalog.js'
 
 function ErrorNotice({ children }) {
   return children ? <Notice tone="error">{children}</Notice> : null
@@ -33,6 +40,7 @@ function newDraft(sizes, categories) {
     category_id: categories[0]?.id ?? '',
     name: '',
     description: '',
+    booking_mode: 'hourly',
     options: Object.fromEntries(sizes.map((size) => [size.code, {
       id: null,
       price: '',
@@ -128,6 +136,7 @@ export default function ControlPage() {
       category_id: service.category_id,
       name: service.name,
       description: service.description ?? '',
+      booking_mode: normalizeBookingMode(service.booking_mode),
       options,
     })
     setServiceError('')
@@ -306,10 +315,8 @@ export default function ControlPage() {
           ? { id: option.id, size: size.code, is_active: false }
           : { id: null, size: size.code, is_active: false }
         const priceCents = priceToCents(option.price)
-        const duration = Number(option.duration)
-        if (priceCents === null || !Number.isInteger(duration) || duration < 5 || duration > 720) {
-          throw new Error('validation')
-        }
+        const duration = resolveDurationMinutes(draft.booking_mode, option.duration)
+        if (priceCents === null || duration === null) throw new Error('validation')
         return {
           id: option.id,
           size: size.code,
@@ -319,13 +326,17 @@ export default function ControlPage() {
         }
       })
       if (!options.some((option) => option.is_active)) throw new Error('validation')
-      await saveService(business.id, { ...draft, name: draft.name.trim() }, options)
+      await saveService(business.id, {
+        ...draft,
+        name: draft.name.trim(),
+        booking_mode: normalizeBookingMode(draft.booking_mode),
+      }, options)
       setDraft(null)
       setServiceNotice('Serviço salvo. As alterações valem para novos agendamentos.')
       await load()
     } catch (error) {
       setServiceError(error.message === 'validation'
-        ? 'Confira a categoria, o nome, a descrição, os preços e os tempos. Selecione ao menos um porte.'
+        ? 'Confira a categoria, o nome, a descrição, os preços e os tempos (quando for por horário). Selecione ao menos um porte.'
         : messageFor(error))
       await load()
     } finally {
@@ -510,12 +521,18 @@ export default function ControlPage() {
                   <article className="service-card" key={service.id} data-archived={Boolean(service.archived_at)}>
                     <div className="service-card-top">
                       <div><h3>{service.name}</h3><p className="muted">{service.description || 'Sem descrição'}</p></div>
-                      {service.archived_at && <span className="booking-status">Arquivado</span>}
+                      <div className="service-card-badges">
+                        <span className="service-mode-badge" data-mode={normalizeBookingMode(service.booking_mode)}>
+                          {BOOKING_MODE_LABELS[normalizeBookingMode(service.booking_mode)]}
+                        </span>
+                        {service.archived_at && <span className="booking-status">Arquivado</span>}
+                      </div>
                     </div>
                     <ul className="service-option-summary">
                       {service.options.filter((option) => option.is_active).map((option) => {
                         const size = state.sizes.find((item) => item.code === option.size)
-                        return <li key={option.id}><span>{size?.name ?? option.size}</span><span>{option.duration_minutes} min</span><strong>{formatBRL(option.price_cents)}</strong></li>
+                        const daily = isDailyService(service)
+                        return <li key={option.id}><span>{size?.name ?? option.size}</span><span>{daily ? 'por diária' : `${option.duration_minutes} min`}</span><strong>{formatBRL(option.price_cents)}</strong></li>
                       })}
                     </ul>
                     {!service.archived_at && <div className="service-card-actions">
@@ -560,25 +577,46 @@ export default function ControlPage() {
             <div className="field"><label htmlFor="service-description">Descrição</label>
               <textarea id="service-description" maxLength={300} value={draft.description}
                 onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} /></div>
+            <fieldset className="booking-mode-picker">
+              <legend>Como esse serviço é agendado?</legend>
+              <div className="booking-mode-options">
+                {[
+                  { value: 'hourly', title: 'Por horário', hint: 'Banho, tosa e outros serviços com hora marcada e duração.' },
+                  { value: 'daily', title: 'Por diária', hint: 'Pet hotel e creche, cobrados por dia de estadia.' },
+                ].map((mode) => (
+                  <label className="booking-mode-option" key={mode.value} data-checked={draft.booking_mode === mode.value}>
+                    <input type="radio" name="service-booking-mode" value={mode.value}
+                      checked={draft.booking_mode === mode.value}
+                      onChange={() => setDraft((current) => ({ ...current, booking_mode: mode.value }))} />
+                    <span className="booking-mode-copy">
+                      <strong>{mode.title}</strong>
+                      <small>{mode.hint}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <fieldset className="service-size-options">
-              <legend>Portes atendidos, preço e duração</legend>
+              <legend>{draft.booking_mode === 'daily' ? 'Portes atendidos e preço da diária' : 'Portes atendidos, preço e duração'}</legend>
               {activeSizes.map((size) => {
                 const option = draft.options[size.code] ?? { id: null, price: '', duration: '30', enabled: false }
                 return <div className="service-size-editor" key={size.code}>
                   <label className="consent"><input type="checkbox" checked={option.enabled}
                     onChange={(event) => updateOption(size.code, 'enabled', event.target.checked)} /><span>{size.name}</span></label>
-                  {option.enabled && <div className="size-price-duration">
-                    <div className="field"><label htmlFor={`price-${size.code}`}>Preço (R$)</label>
-                      <input id={`price-${size.code}`} type="text" inputMode="decimal" placeholder="45,00" required
+                  {option.enabled && <div className="size-price-duration" data-mode={draft.booking_mode}>
+                    <div className="field"><label htmlFor={`price-${size.code}`}>{draft.booking_mode === 'daily' ? 'Preço da diária (R$)' : 'Preço (R$)'}</label>
+                      <input id={`price-${size.code}`} type="text" inputMode="decimal" placeholder={draft.booking_mode === 'daily' ? '90,00' : '45,00'} required
                         value={option.price} onChange={(event) => updateOption(size.code, 'price', event.target.value)} /></div>
-                    <div className="field"><label htmlFor={`duration-${size.code}`}>Tempo (min)</label>
+                    {draft.booking_mode !== 'daily' && <div className="field"><label htmlFor={`duration-${size.code}`}>Tempo (min)</label>
                       <input id={`duration-${size.code}`} type="number" min="5" max="720" step="1" required
-                        value={option.duration} onChange={(event) => updateOption(size.code, 'duration', event.target.value)} /></div>
+                        value={option.duration} onChange={(event) => updateOption(size.code, 'duration', event.target.value)} /></div>}
                   </div>}
                 </div>
               })}
             </fieldset>
-            <p className="hint">O tempo configurado é usado pelo banco para reservar o intervalo correto na agenda.</p>
+            <p className="hint">{draft.booking_mode === 'daily'
+              ? 'Serviços por diária não usam horários: o cliente escolhe entrada e saída no link público e o preço é cobrado por diária. As vagas do hotel são independentes da agenda de horários.'
+              : 'O tempo configurado é usado pelo banco para reservar o intervalo correto na agenda.'}</p>
             <ErrorNotice>{serviceError}</ErrorNotice>
             <button className="btn btn-primary" type="submit" disabled={savingService || state.categories.length === 0}>
               {savingService ? 'Salvando serviço…' : 'Salvar serviço'}

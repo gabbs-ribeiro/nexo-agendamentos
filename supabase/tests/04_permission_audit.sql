@@ -10,7 +10,8 @@ with
 -- funcoes que o cliente publico (anon) pode executar
 allowed_anon(fn) as (values
   ('get_public_business'), ('list_public_services'),
-  ('list_public_service_categories'), ('get_available_slots'), ('create_public_booking')),
+  ('list_public_service_categories'), ('get_available_slots'), ('create_public_booking'),
+  ('get_stay_quote'), ('create_public_stay')),
 -- funcoes que usuarios logados podem executar (as publicas + admin)
 allowed_auth(fn) as (values
   ('get_public_business'), ('list_public_services'),
@@ -18,14 +19,16 @@ allowed_auth(fn) as (values
   ('admin_create_booking'), ('admin_set_booking_status'),
   ('admin_reschedule_booking'), ('admin_update_booking_details'),
   ('admin_create_time_block'), ('admin_update_booking_internal_notes'),
-  ('admin_replace_business_hours')),
+  ('admin_replace_business_hours'),
+  ('get_stay_quote'), ('create_public_stay'), ('admin_set_stay_status')),
 -- privilegios que authenticated NAO pode ter (decisoes de arquitetura)
 forbidden_auth(tbl, priv) as (values
   ('bookings','insert'), ('bookings','update'), ('bookings','delete'), ('bookings','truncate'),
   ('time_blocks','insert'), ('time_blocks','update'), ('time_blocks','truncate'),
   ('business_members','insert'), ('business_members','update'), ('business_members','delete'),
   ('businesses','insert'), ('businesses','delete'),
-  ('services','delete'), ('service_options','delete'), ('service_categories','delete'))
+  ('services','delete'), ('service_options','delete'), ('service_categories','delete'),
+  ('stay_bookings','insert'), ('stay_bookings','update'), ('stay_bookings','delete'), ('stay_bookings','truncate'))
 select * from (
 
   -- 1) tabela sem RLS

@@ -17,8 +17,10 @@
 | 08 | `tests/08_booking_history_and_cancellation.sql` | Novas reservas usam configurações atuais; edição/arquivamento/remarcação preservam snapshots; notas internas e isolamento; cancelamento definitivo libera horário | só PASS | ✅ responsável relata execução sem erro após migration 01; repetir após 02 |
 | 09 | `tests/09_business_control_catalog.sql` | Perfil, categorias, associação e edição, serviço com descrição, porte customizado, preço/duração por opção, disponibilidade e snapshot do rótulo; porte desativado não oferece horários nem aceita reserva | só PASS | ⚠️ migrations 06 e 07 aplicadas; falha atual: porte desativado ainda aparece em `get_available_slots`; aplicar migration corretiva 08 e repetir |
 | 10 | `tests/10_business_hours_and_day_off.sql` | Múltiplos períodos por dia, atualização atômica (mantém horários anteriores ao rejeitar sobreposição), conflito de folga com agendamento e bloqueio no fuso do negócio | só PASS | ☐ executar após aplicar a migration 05 |
+| 11 | `tests/11_service_booking_mode.sql` | Serviço novo nasce por horário; valor inválido de modo é recusado; catálogo público devolve `booking_mode`; serviço por diária não oferece horários nem aceita reserva (admin e público); serviço por horário segue reservando; `anon` não altera o modo | só PASS | ☐ executar após aplicar a migration `20261022000001` |
+| 12 | `tests/12_pet_hotel_stays.sql` | Capacidade 4; 5ª estadia esgota (`STAY_FULL`); noite da saída não conta; idempotência; hotel lotado não bloqueia banho e tosa e folga da agenda não bloqueia hotel; limite por telefone; datas inválidas; snapshot de preço; cancelar libera vaga; sem escrita direta; isolamento entre negócios; anon sem acesso | só PASS | ☐ executar após a migration `20261022000002` |
 
-No DEV, o responsável confirmou que as migrations 06 e 07 foram aplicadas e executou o teste 09. As verificações de catálogo avançaram; a falha atual indica que `get_available_slots` não filtrou o porte desativado. A migration `20261021000008_restore_active_size_slot_filter.sql` restaura esse filtro; aplique-a somente no DEV e rode novamente o teste 09, que verifica também a rejeição da reserva para a opção inativa. O schema `supabase_migrations.schema_migrations` não existe porque o projeto foi atualizado manualmente pelo SQL Editor; isso não informa quais scripts já foram executados. Confira o estado antes de reaplicar migrations. A migration 05 requer a 04; aplique/valide pendências e rode também 01, 04 e 10. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não reaplique migrations não idempotentes sem conferir o schema.
+No DEV, o responsável confirmou que as migrations 06 e 07 foram aplicadas e executou o teste 09. As verificações de catálogo avançaram; a falha atual indica que `get_available_slots` não filtrou o porte desativado. A migration `20261021000008_restore_active_size_slot_filter.sql` restaura esse filtro; aplique-a somente no DEV e rode novamente o teste 09, que verifica também a rejeição da reserva para a opção inativa. O schema `supabase_migrations.schema_migrations` não existe porque o projeto foi atualizado manualmente pelo SQL Editor; isso não informa quais scripts já foram executados. Confira o estado antes de reaplicar migrations. A migration 05 requer a 04; aplique/valide pendências e rode também 01, 04 e 10. As migrations `20261022000001` e `20261022000002` exigem as anteriores até a 08; depois delas rode 12, 11, 04 e 09. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não reaplique migrations não idempotentes sem conferir o schema.
 
 ## Concorrência: o que o script cobre e o que não cobre
 Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, mesma chave de idempotência) pela API real.
@@ -40,7 +42,7 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 38 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente e elegibilidade para concluir. Última execução nesta entrega: `# pass 38`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 55 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente e elegibilidade para concluir. Última execução nesta entrega: `# pass 55`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -89,3 +91,19 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Teclado: tab percorre tudo, foco sempre visível, Enter confirma o formulário; leitor de tela anuncia erros dos campos.
 - [ ] Cor da marca clara (ex.: amarelo) e escura: texto dos botões continua legível.
 - [ ] Nenhum texto técnico/bruto aparece em erros (desligue o projeto/derrube a rede para ver a mensagem genérica).
+
+**Modo de agendamento por diária (manual no navegador, DEV, após a migration `20261022000001`):**
+- [ ] Controle → Serviços para reserva → Adicionar serviço: seletor “Como esse serviço é agendado?” aparece com “Por horário” marcado por padrão.
+- [ ] Marcar “Por diária”: o campo “Tempo (min)” some, o preço vira “Preço da diária (R$)” e o serviço salva; o cartão mostra o selo “Por diária” e “por diária” no lugar dos minutos.
+- [ ] Editar um serviço existente e trocar entre horário e diária (nos dois sentidos) salva e mantém preços; agendamentos antigos não mudam.
+- [ ] Link público: serviço por diária mostra “Diária a partir de”, preços por porte e o link de WhatsApp (ou o aviso sem WhatsApp), sem seleção de porte nem carrinho; serviços por horário seguem como antes.
+- [ ] Calendário → novo agendamento manual não lista serviços por diária; o fluxo `/agendar` também não.
+- [ ] Seletor de modo utilizável por teclado (setas/Tab, foco visível) e sem rolagem horizontal em 375 px.
+
+**Hospedagem por diária (manual no navegador, DEV, após as migrations 20261022000001 e 20261022000002):**
+- [ ] Link público: escolher serviço por diária e porte → “Escolher entrada e saída” abre `/:slug/hospedagem`.
+- [ ] Com vagas: mostra “N diárias × R$ preço = total” e libera “Continuar”; os dados e a confirmação mostram entrada, saída, diárias e total.
+- [ ] Com 4 estadias nas mesmas datas, a quinta tentativa mostra “Esgotado nas datas escolhidas…” com texto clicável que abre o WhatsApp do estabelecimento (mesmo número do rodapé) e “Continuar” fica desabilitado.
+- [ ] Entrar no dia da saída de outra estadia lotada tem vaga; banho e tosa continua disponível no mesmo dia com o hotel lotado.
+- [ ] Painel (Início e Calendário): seção “Hospedagem” lista entradas, saídas e hospedados; cancelar libera a vaga; concluir só aparece a partir do dia da saída.
+- [ ] Teclado e leitor de tela nos campos de data; sem rolagem horizontal em 375 px.

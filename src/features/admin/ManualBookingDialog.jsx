@@ -49,8 +49,10 @@ export default function ManualBookingDialog({ open, business, initialDate, onCan
     setError('')
     setSubmissionUncertain(false)
     listPublicServices(business.slug)
-      .then((services) => {
+      .then((allServices) => {
         if (!active) return
+        // Servicos por diaria ainda nao tem reserva; o banco tambem os recusa.
+        const services = allServices.filter((service) => service.booking_mode !== 'daily')
         setServicesState({ status: 'ready', services })
         const firstService = services.find((service) => service.options.length > 0)
         setSelectedServiceId(firstService?.service_id ?? '')

@@ -16,7 +16,10 @@ function Field({ id, label, error, hint, children }) {
   )
 }
 
-export default function StepDetails({ slug, form, onField, onSubmit, submitting, failure }) {
+export default function StepDetails({
+  slug, form, onField, onSubmit, submitting, failure,
+  submitLabel = 'Confirmar agendamento', title = 'Seus dados',
+}) {
   const h1 = useFocusOnMount()
   const formRef = useRef(null)
   const [errors, setErrors] = useState({})
@@ -40,7 +43,7 @@ export default function StepDetails({ slug, form, onField, onSubmit, submitting,
 
   return (
     <form ref={formRef} className="stack" onSubmit={handleSubmit} noValidate>
-      <h1 ref={h1} tabIndex={-1}>Seus dados</h1>
+      <h1 ref={h1} tabIndex={-1}>{title}</h1>
 
       <Field id="name" label="Seu nome" error={errors.name}>
         <input id="name" type="text" autoComplete="name" maxLength={100} value={form.name}
@@ -82,13 +85,13 @@ export default function StepDetails({ slug, form, onField, onSubmit, submitting,
       {failure && (
         <Notice tone="error">
           {failure.message}
-          {failure.code === 'NETWORK' && ' Seus dados foram mantidos: toque em Confirmar para tentar de novo, sem risco de reservar duas vezes.'}
+          {failure.code === 'NETWORK' && ' Seus dados foram mantidos: toque no botão de confirmar para tentar de novo, sem risco de reservar duas vezes.'}
         </Notice>
       )}
 
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={submitting}>
-          {submitting ? 'Confirmando…' : 'Confirmar agendamento'}
+          {submitting ? 'Confirmando…' : submitLabel}
         </button>
       </div>
     </form>

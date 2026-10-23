@@ -12,12 +12,15 @@ import SummaryBar from './SummaryBar.jsx'
 import { usePublic } from './usePublic.js'
 
 export default function BookingPage() {
-  const { slug, business, services } = usePublic()
+  const { slug, business, services: catalog } = usePublic()
   const location = useLocation()
   const navigate = useNavigate()
   const [state, dispatch] = useReducer(reducer, location.state?.optionId, initialBookingState)
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState(null)
+
+  // Servicos por diaria nao usam este fluxo (dia + horario); o banco tambem os recusa.
+  const services = useMemo(() => catalog.filter((service) => service.booking_mode !== 'daily'), [catalog])
 
   const selected = useMemo(() => {
     for (const service of services) {

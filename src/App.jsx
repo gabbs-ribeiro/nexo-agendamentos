@@ -3,6 +3,8 @@ import PublicLayout from './features/public-booking/PublicLayout.jsx'
 import ServicesPage from './features/public-booking/ServicesPage.jsx'
 import BookingPage from './features/public-booking/BookingPage.jsx'
 import ConfirmedPage from './features/public-booking/ConfirmedPage.jsx'
+import StayPage from './features/public-booking/StayPage.jsx'
+import StayConfirmedPage from './features/public-booking/StayConfirmedPage.jsx'
 import PrivacyPage from './features/public-booking/PrivacyPage.jsx'
 import LoginPage from './features/auth/LoginPage.jsx'
 import AdminAccessPage from './features/auth/AdminAccessPage.jsx'
@@ -29,6 +31,8 @@ export default function App() {
         <Route index element={<ServicesPage />} />
         <Route path="agendar" element={<BookingPage />} />
         <Route path="confirmado" element={<ConfirmedPage />} />
+        <Route path="hospedagem" element={<StayPage />} />
+        <Route path="hospedagem/confirmado" element={<StayConfirmedPage />} />
         <Route path="privacidade" element={<PrivacyPage />} />
         <Route path="*" element={<Simple title="Página não encontrada">Confira o link com o estabelecimento.</Simple>} />
       </Route>

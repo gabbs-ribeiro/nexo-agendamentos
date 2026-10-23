@@ -18,6 +18,7 @@ import { capitalizeFirst, weekDays, weekMonthTitle } from './calendarWeek.js'
 import BookingList from './BookingList.jsx'
 import BookingShareCard from './BookingShareCard.jsx'
 import ManualBookingDialog from './ManualBookingDialog.jsx'
+import StaysSection from './StaysSection.jsx'
 
 function greeting(timezone) {
   const hour = Number(new Intl.DateTimeFormat('en-US', {
@@ -309,6 +310,8 @@ export default function AgendaPage({ view }) {
         />
         </div>
       )}
+
+      <StaysSection business={business} date={date} />
 
       {isHome && <BookingShareCard slug={business.slug} businessName={business.name} />}
 

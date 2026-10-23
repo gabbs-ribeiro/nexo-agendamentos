@@ -55,6 +55,54 @@ export async function createPublicBooking({ slug, optionId, startsAt, form, idem
   return data
 }
 
+/** Orcamento da estadia: { available, nights, daily_price_cents, total_price_cents }. */
+export async function getStayQuote(slug, optionId, checkIn, checkOut) {
+  const data = await rpc('get_stay_quote', {
+    p_slug: slug,
+    p_option_id: optionId,
+    p_check_in: checkIn,
+    p_check_out: checkOut,
+  })
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
+/** Reserva a estadia. `idempotencyKey`: uma por confirmacao, reutilizada em retries. */
+export async function createPublicStay({ slug, optionId, checkIn, checkOut, form, idempotencyKey }) {
+  const data = await rpc('create_public_stay', {
+    p_slug: slug,
+    p_option_id: optionId,
+    p_check_in: checkIn,
+    p_check_out: checkOut,
+    p_customer_name: form.name,
+    p_customer_phone: form.phone,
+    p_pet_name: form.petName,
+    p_pet_breed: form.petBreed || null,
+    p_notes: form.notes || null,
+    p_consent: form.consent === true,
+    p_idempotency_key: idempotencyKey,
+  })
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
+/** Estadias que cobrem a data (entrada, hospedado ou saida), sem canceladas. */
+export async function listAdminStaysOnDate(businessId, date) {
+  const { data, error } = await supabase
+    .from('stay_bookings')
+    .select('id, business_id, status, check_in, check_out, nights, service_name, size_label, daily_price_cents, total_price_cents, customer_name, customer_phone, pet_name, pet_breed, notes')
+    .eq('business_id', businessId)
+    .in('status', ['confirmed', 'completed'])
+    .lte('check_in', date)
+    .gte('check_out', date)
+    .order('check_in', { ascending: true })
+  if (error || !Array.isArray(data)) {
+    if (error) console.error('[stays select]', error.code)
+    throw new ApiError('NETWORK')
+  }
+  return data
+}
+
 export async function listAdminBookings(businessId, start, end) {
   const { data, error } = await supabase
     .from('bookings')
@@ -143,6 +191,13 @@ export function createAdminBooking(businessId, optionId, startsAt, form) {
     p_pet_name: form.petName,
     p_pet_breed: form.petBreed || null,
     p_notes: form.notes || null,
+  })
+}
+
+export function setAdminStayStatus(stayId, status) {
+  return adminRpc('admin_set_stay_status', {
+    p_stay_id: stayId,
+    p_status: status,
   })
 }
 
@@ -236,7 +291,7 @@ export async function listBusinessCatalog(businessId) {
       .order('sort_order')
       .order('name'),
     supabase.from('services')
-      .select('id, business_id, category_id, name, description, is_active, archived_at')
+      .select('id, business_id, category_id, name, description, booking_mode, is_active, archived_at')
       .eq('business_id', businessId)
       .order('name'),
     supabase.from('service_options')
@@ -344,6 +399,7 @@ export async function saveService(businessId, service, options) {
         category_id: service.category_id,
         name: service.name,
         description: service.description,
+        booking_mode: service.booking_mode === 'daily' ? 'daily' : 'hourly',
       })
       .eq('business_id', businessId)
       .eq('id', service.id)
@@ -355,6 +411,7 @@ export async function saveService(businessId, service, options) {
         category_id: service.category_id,
         name: service.name,
         description: service.description,
+        booking_mode: service.booking_mode === 'daily' ? 'daily' : 'hourly',
         is_active: true,
       })
       .select('id')

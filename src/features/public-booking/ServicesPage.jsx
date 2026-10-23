@@ -25,6 +25,7 @@ export default function ServicesPage() {
   const [expandedCategories, setExpandedCategories] = useState(() => new Set())
   const selected = findSelectedService(services, selectedOptionId)
   const wa = whatsappUrl(business.contact_phone)
+  const selectedIsDaily = selected?.service.booking_mode === 'daily'
 
   function toggleCategory(categoryId) {
     setExpandedCategories((current) => {
@@ -40,7 +41,7 @@ export default function ServicesPage() {
       <section className="public-welcome-card">
         <p className="eyebrow">Um cuidado especial para o seu pet</p>
         <h1>Bem-vindo(a) à {business.name}!</h1>
-        <p>Escolha o serviço e o porte do seu pet para consultar os horários disponíveis.</p>
+        <p>Escolha o serviço e o porte do seu pet. Nos serviços com hora marcada, você consulta os horários; na hospedagem, escolhe as datas.</p>
       </section>
 
       <section className="public-services-section stack-sm" aria-labelledby="public-services-title">
@@ -110,17 +111,17 @@ export default function ServicesPage() {
           <div className="public-cart-line">
             <div id="public-cart-title">
               <strong>{selected.service.name}</strong>
-              <span>Porte {selected.option.size_label} · {formatDuration(selected.option.duration_minutes)}</span>
+              <span>Porte {selected.option.size_label} · {selectedIsDaily ? 'por diária' : formatDuration(selected.option.duration_minutes)}</span>
             </div>
             <strong className="public-cart-price">{formatBRL(selected.option.price_cents)}</strong>
           </div>
-          <p className="small muted">1 serviço e 1 pet por horário.</p>
+          <p className="small muted">{selectedIsDaily ? '1 serviço e 1 pet por reserva.' : '1 serviço e 1 pet por horário.'}</p>
           <Link
             className="btn btn-primary"
-            to={`/${slug}/agendar`}
+            to={selectedIsDaily ? `/${slug}/hospedagem` : `/${slug}/agendar`}
             state={{ optionId: selected.option.option_id }}
           >
-            Escolher dia e horário
+            {selectedIsDaily ? 'Escolher entrada e saída' : 'Escolher dia e horário'}
           </Link>
         </section>
       )}
