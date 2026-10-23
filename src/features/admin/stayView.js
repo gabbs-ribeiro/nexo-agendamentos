@@ -14,8 +14,11 @@ export const STAY_PHASE_LABELS = {
 }
 
 /** Concluir so depois que chega o dia da saida (o banco tambem confere). */
-export function canCompleteStay(stay, today) {
-  return stay.status === 'confirmed' && stay.check_out <= today
+export function canCompleteStay(stay, today, now = new Date()) {
+  if (stay.status !== 'confirmed') return false
+  return stay.check_out_at
+    ? new Date(stay.check_out_at).getTime() <= now.getTime()
+    : stay.check_out <= today
 }
 
 /** Pets ocupando vaga na noite da data: confirmados que entraram e ainda nao sairam. */

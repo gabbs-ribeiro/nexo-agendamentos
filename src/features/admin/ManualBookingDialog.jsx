@@ -51,8 +51,8 @@ export default function ManualBookingDialog({ open, business, initialDate, onCan
     listPublicServices(business.slug)
       .then((allServices) => {
         if (!active) return
-        // Servicos por diaria ainda nao tem reserva; o banco tambem os recusa.
-        const services = allServices.filter((service) => service.booking_mode !== 'daily')
+        // O agendamento manual deste painel usa somente a agenda por horário.
+        const services = allServices.filter((service) => service.booking_mode === 'hourly')
         setServicesState({ status: 'ready', services })
         const firstService = services.find((service) => service.options.length > 0)
         setSelectedServiceId(firstService?.service_id ?? '')

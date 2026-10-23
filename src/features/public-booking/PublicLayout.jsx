@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Outlet, useParams } from 'react-router-dom'
-import { getPublicBusiness, listPublicServiceCategories, listPublicServices, logoUrl } from '../../lib/api.js'
+import {
+  getPublicBusiness, listPublicBookingModels, listPublicServiceCategories, listPublicServices, logoUrl,
+} from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { brandOrDefault, readableOn } from '../../lib/format.js'
 import Notice from '../../components/Notice.jsx'
@@ -21,12 +23,32 @@ export default function PublicLayout() {
   const load = useCallback(async () => {
     setState({ status: 'loading' })
     try {
-      const [business, services, categories] = await Promise.all([
+      const [business, services, categories, models] = await Promise.all([
         getPublicBusiness(slug),
         listPublicServices(slug),
         listPublicServiceCategories(slug),
+        listPublicBookingModels(slug),
       ])
-      setState(business ? { status: 'ready', business, services, categories } : { status: 'notfound' })
+      const modelByService = new Map(models.map((model) => [model.service_id, model]))
+      const applyModel = (service) => {
+        const model = modelByService.get(service.service_id)
+        if (!model) return service
+        const prices = new Map((model.options ?? []).map((item) => [item.option_id, item]))
+        return {
+          ...service,
+          booking_mode: model.booking_mode,
+          booking_settings: model.settings,
+          options: service.options.map((option) => ({ ...option, ...prices.get(option.option_id) })),
+        }
+      }
+      const publicServices = services.map(applyModel)
+      const publicCategories = categories.map((category) => ({
+        ...category,
+        services: category.services.map(applyModel),
+      }))
+      setState(business
+        ? { status: 'ready', business, services: publicServices, categories: publicCategories }
+        : { status: 'notfound' })
     } catch (err) {
       setState({ status: 'error', message: messageFor(err) })
     }

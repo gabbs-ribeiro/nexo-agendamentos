@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { findSelectedService, startingPrice } from '../src/features/public-booking/serviceSelection.js'
+import {
+  displayedPrice, findSelectedService, serviceStartingPrice, startingPrice,
+} from '../src/features/public-booking/serviceSelection.js'
 
 const services = [
   {
@@ -21,6 +23,18 @@ const services = [
 test('preço inicial é o menor valor entre os portes disponíveis', () => {
   assert.equal(startingPrice(services[0].options), 5000)
   assert.equal(startingPrice([]), null)
+})
+
+test('modelos por período mostram o menor preço configurado entre as modalidades', () => {
+  const service = {
+    booking_mode: 'periods',
+    options: [
+      { option_id: 'small', price_cents: 3000, morning_price_cents: 3000, afternoon_price_cents: 3500, full_day_price_cents: 6000 },
+      { option_id: 'large', price_cents: 5000, morning_price_cents: 5000, afternoon_price_cents: 4500, full_day_price_cents: 8500 },
+    ],
+  }
+  assert.equal(displayedPrice(service, service.options[0]), 3000)
+  assert.equal(serviceStartingPrice(service), 3000)
 })
 
 test('opção escolhida determina serviço, porte, valor e duração', () => {

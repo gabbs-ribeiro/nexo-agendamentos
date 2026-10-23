@@ -30,6 +30,10 @@ export async function listPublicServiceCategories(slug) {
   return (await rpc('list_public_service_categories', { p_slug: slug })) ?? []
 }
 
+export async function listPublicBookingModels(slug) {
+  return (await rpc('get_public_booking_models', { p_slug: slug })) ?? []
+}
+
 export async function getAvailableSlots(slug, optionId, date) {
   return (await rpc('get_available_slots', { p_slug: slug, p_option_id: optionId, p_date: date })) ?? []
 }
@@ -86,11 +90,73 @@ export async function createPublicStay({ slug, optionId, checkIn, checkOut, form
   return data
 }
 
+export async function getPeriodQuote(slug, optionId, date, period) {
+  const data = await rpc('get_period_quote', {
+    p_slug: slug,
+    p_option_id: optionId,
+    p_date: date,
+    p_period: period,
+  })
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
+export async function createPublicPeriodBooking({ slug, optionId, date, period, form, idempotencyKey }) {
+  const data = await rpc('create_public_period_booking', {
+    p_slug: slug,
+    p_option_id: optionId,
+    p_date: date,
+    p_period: period,
+    p_customer_name: form.name,
+    p_customer_phone: form.phone,
+    p_pet_name: form.petName,
+    p_pet_breed: form.petBreed || null,
+    p_notes: form.notes || null,
+    p_consent: form.consent === true,
+    p_idempotency_key: idempotencyKey,
+  })
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
+export async function getTimedStayOptions(slug, optionId, checkIn, entryTime) {
+  const data = await rpc('get_timed_stay_options', {
+    p_slug: slug,
+    p_option_id: optionId,
+    p_check_in: checkIn,
+    p_entry_time: entryTime,
+  })
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
+export async function createPublicTimedStay({
+  slug, optionId, checkIn, entryTime, checkOut, exitTime, form, idempotencyKey,
+}) {
+  const data = await rpc('create_public_timed_stay', {
+    p_slug: slug,
+    p_option_id: optionId,
+    p_check_in: checkIn,
+    p_entry_time: entryTime,
+    p_check_out: checkOut,
+    p_exit_time: exitTime,
+    p_customer_name: form.name,
+    p_customer_phone: form.phone,
+    p_pet_name: form.petName,
+    p_pet_breed: form.petBreed || null,
+    p_notes: form.notes || null,
+    p_consent: form.consent === true,
+    p_idempotency_key: idempotencyKey,
+  })
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
 /** Estadias que cobrem a data (entrada, hospedado ou saida), sem canceladas. */
 export async function listAdminStaysOnDate(businessId, date) {
   const { data, error } = await supabase
     .from('stay_bookings')
-    .select('id, business_id, status, check_in, check_out, nights, service_name, size_label, daily_price_cents, total_price_cents, customer_name, customer_phone, pet_name, pet_breed, notes')
+    .select('id, business_id, status, check_in, check_out, check_in_at, check_out_at, duration_minutes, charge_units, nights, service_name, size_label, daily_price_cents, total_price_cents, customer_name, customer_phone, pet_name, pet_breed, notes')
     .eq('business_id', businessId)
     .in('status', ['confirmed', 'completed'])
     .lte('check_in', date)
@@ -101,6 +167,17 @@ export async function listAdminStaysOnDate(businessId, date) {
     throw new ApiError('NETWORK')
   }
   return data
+}
+
+export async function listAdminDaycareOnDate(businessId, date) {
+  const data = await rpc('admin_list_daycare_on_date', {
+    p_business_id: businessId,
+    p_date: date,
+  })
+  if (!data || data.ok !== true || !Array.isArray(data.bookings)) {
+    throw new ApiError(data?.error ?? 'UNKNOWN')
+  }
+  return data.bookings
 }
 
 export async function listAdminBookings(businessId, start, end) {
@@ -201,6 +278,13 @@ export function setAdminStayStatus(stayId, status) {
   })
 }
 
+export function setAdminDaycareStatus(bookingId, status) {
+  return adminRpc('admin_set_daycare_status', {
+    p_booking_id: bookingId,
+    p_status: status,
+  })
+}
+
 export function setAdminBookingStatus(bookingId, status) {
   return adminRpc('admin_set_booking_status', {
     p_booking_id: bookingId,
@@ -279,7 +363,7 @@ export async function getBusinessControl(businessId) {
 }
 
 export async function listBusinessCatalog(businessId) {
-  const [sizesResult, categoriesResult, servicesResult, optionsResult] = await Promise.all([
+  const [sizesResult, categoriesResult, servicesResult, optionsResult, settingsResult] = await Promise.all([
     supabase.from('business_sizes')
       .select('business_id, code, name, sort_order, is_active')
       .eq('business_id', businessId)
@@ -295,19 +379,24 @@ export async function listBusinessCatalog(businessId) {
       .eq('business_id', businessId)
       .order('name'),
     supabase.from('service_options')
-      .select('id, business_id, service_id, size, price_cents, duration_minutes, is_active')
+      .select('id, business_id, service_id, size, price_cents, duration_minutes, morning_price_cents, afternoon_price_cents, full_day_price_cents, is_active')
+      .eq('business_id', businessId),
+    supabase.from('service_booking_settings')
+      .select('service_id, business_id, morning_start, morning_end, afternoon_start, afternoon_end, check_in_times, check_out_times')
       .eq('business_id', businessId),
   ])
   throwIfApiError(sizesResult.error, 'business sizes select')
   throwIfApiError(categoriesResult.error, 'service categories select')
   throwIfApiError(servicesResult.error, 'services select')
   throwIfApiError(optionsResult.error, 'service options select')
+  throwIfApiError(settingsResult.error, 'service booking settings select')
   return {
     sizes: sizesResult.data ?? [],
     categories: categoriesResult.data ?? [],
     services: (servicesResult.data ?? []).map((service) => ({
       ...service,
       options: (optionsResult.data ?? []).filter((option) => option.service_id === service.id),
+      settings: (settingsResult.data ?? []).find((settings) => settings.service_id === service.id) ?? null,
     })),
   }
 }
@@ -392,14 +481,17 @@ export async function saveServiceCategory(businessId, category) {
   if (!result.data) throw new ApiError('AUTH_ACCESS_DENIED')
 }
 
-export async function saveService(businessId, service, options) {
+export async function saveService(businessId, service, options, settings) {
+  const bookingMode = ['daily', 'periods', 'stay'].includes(service.booking_mode)
+    ? service.booking_mode
+    : 'hourly'
   const serviceResult = service.id
     ? await supabase.from('services')
       .update({
         category_id: service.category_id,
         name: service.name,
         description: service.description,
-        booking_mode: service.booking_mode === 'daily' ? 'daily' : 'hourly',
+        booking_mode: bookingMode,
       })
       .eq('business_id', businessId)
       .eq('id', service.id)
@@ -411,7 +503,7 @@ export async function saveService(businessId, service, options) {
         category_id: service.category_id,
         name: service.name,
         description: service.description,
-        booking_mode: service.booking_mode === 'daily' ? 'daily' : 'hourly',
+        booking_mode: bookingMode,
         is_active: true,
       })
       .select('id')
@@ -427,6 +519,9 @@ export async function saveService(businessId, service, options) {
         .update({
           price_cents: option.price_cents,
           duration_minutes: option.duration_minutes,
+          morning_price_cents: option.morning_price_cents ?? null,
+          afternoon_price_cents: option.afternoon_price_cents ?? null,
+          full_day_price_cents: option.full_day_price_cents ?? null,
           is_active: option.is_active,
         })
         .eq('business_id', businessId)
@@ -440,6 +535,9 @@ export async function saveService(businessId, service, options) {
           size: option.size,
           price_cents: option.price_cents,
           duration_minutes: option.duration_minutes,
+          morning_price_cents: option.morning_price_cents ?? null,
+          afternoon_price_cents: option.afternoon_price_cents ?? null,
+          full_day_price_cents: option.full_day_price_cents ?? null,
           is_active: option.is_active,
         })
         .select('id')
@@ -447,6 +545,10 @@ export async function saveService(businessId, service, options) {
     throwIfApiError(result.error, 'service option save')
     if (!result.data) throw new ApiError('AUTH_ACCESS_DENIED')
   }
+  await adminRpc('admin_save_service_booking_settings', {
+    p_service_id: serviceId,
+    p_config: settings ?? {},
+  })
 }
 
 export async function archiveService(businessId, serviceId) {

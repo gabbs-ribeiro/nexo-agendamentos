@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatBRL, formatDuration, whatsappUrl } from '../../lib/format.js'
 import Notice from '../../components/Notice.jsx'
-import { findSelectedService } from './serviceSelection.js'
+import { displayedPrice, findSelectedService } from './serviceSelection.js'
 import ServiceCard from './ServiceCard.jsx'
 import { usePublic } from './usePublic.js'
 
@@ -25,7 +25,14 @@ export default function ServicesPage() {
   const [expandedCategories, setExpandedCategories] = useState(() => new Set())
   const selected = findSelectedService(services, selectedOptionId)
   const wa = whatsappUrl(business.contact_phone)
-  const selectedIsDaily = selected?.service.booking_mode === 'daily'
+  const selectedMode = selected?.service.booking_mode
+  const selectedIsStay = ['daily', 'stay'].includes(selectedMode)
+  const selectedIsPeriods = selectedMode === 'periods'
+  const nextPath = selectedIsPeriods
+    ? `/${slug}/periodos`
+    : selectedIsStay
+      ? `/${slug}/hospedagem`
+      : `/${slug}/agendar`
 
   function toggleCategory(categoryId) {
     setExpandedCategories((current) => {
@@ -41,7 +48,7 @@ export default function ServicesPage() {
       <section className="public-welcome-card">
         <p className="eyebrow">Um cuidado especial para o seu pet</p>
         <h1>Bem-vindo(a) à {business.name}!</h1>
-        <p>Escolha o serviço e o porte do seu pet. Nos serviços com hora marcada, você consulta os horários; na hospedagem, escolhe as datas.</p>
+        <p>Escolha o serviço e o porte do seu pet. Consulte horários, períodos ou opções de entrada e saída conforme o serviço.</p>
       </section>
 
       <section className="public-services-section stack-sm" aria-labelledby="public-services-title">
@@ -111,17 +118,21 @@ export default function ServicesPage() {
           <div className="public-cart-line">
             <div id="public-cart-title">
               <strong>{selected.service.name}</strong>
-              <span>Porte {selected.option.size_label} · {selectedIsDaily ? 'por diária' : formatDuration(selected.option.duration_minutes)}</span>
+              <span>Porte {selected.option.size_label} · {selectedIsPeriods ? 'por período' : selectedIsStay ? 'por diária' : formatDuration(selected.option.duration_minutes)}</span>
             </div>
-            <strong className="public-cart-price">{formatBRL(selected.option.price_cents)}</strong>
+            <strong className="public-cart-price">{formatBRL(displayedPrice(selected.service, selected.option))}</strong>
           </div>
-          <p className="small muted">{selectedIsDaily ? '1 serviço e 1 pet por reserva.' : '1 serviço e 1 pet por horário.'}</p>
+          <p className="small muted">{selectedIsPeriods
+            ? 'Escolha manhã, tarde ou período integral.'
+            : selectedIsStay
+              ? 'Escolha os horários permitidos de entrada e saída.'
+              : '1 serviço e 1 pet por horário.'}</p>
           <Link
             className="btn btn-primary"
-            to={selectedIsDaily ? `/${slug}/hospedagem` : `/${slug}/agendar`}
+            to={nextPath}
             state={{ optionId: selected.option.option_id }}
           >
-            {selectedIsDaily ? 'Escolher entrada e saída' : 'Escolher dia e horário'}
+            {selectedIsPeriods ? 'Escolher período' : selectedIsStay ? 'Escolher entrada e saída' : 'Escolher dia e horário'}
           </Link>
         </section>
       )}
