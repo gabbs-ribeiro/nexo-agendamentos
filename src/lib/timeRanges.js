@@ -20,3 +20,17 @@ export function timeOptionsInRange(start, end) {
   }
   return options
 }
+
+/** Minutos desde 00:00 AGORA no fuso do negocio (para esconder horarios de hoje que ja passaram). */
+export function minutesNowInTz(timeZone, now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(now)
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0)
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0)
+  return hour * 60 + minute
+}
+
+/** "HH:MM" -> minutos desde 00:00. */
+export function timeToMinutes(hhmm) {
+  return Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5))
+}
