@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Notice from '../../components/Notice.jsx'
+import PhoneWhatsApp from '../../components/PhoneWhatsApp.jsx'
 import { listAdminDaycareOnDate, setAdminDaycareStatus } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { formatBRL, formatInstant } from '../../lib/format.js'
@@ -73,7 +74,7 @@ export default function DaycareSection({ business, date }) {
                 <p className="stay-admin-meta">
                   <span>{start.date} · {start.time}–{end.time}</span>
                   <strong>{formatBRL(booking.price_cents)}</strong>
-                  <a href={`tel:${booking.customer_phone}`}>{booking.customer_phone}</a>
+                  <PhoneWhatsApp phone={booking.customer_phone} />
                 </p>
                 {booking.notes && <p className="booking-customer-note"><strong>Observação do cliente</strong><span>{booking.notes}</span></p>}
                 {booking.status === 'confirmed' && (

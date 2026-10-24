@@ -966,7 +966,8 @@ button.stay-exit-card:focus-visible { outline: 3px solid var(--brand); outline-o
   width: fit-content; max-width: 100%; padding: 3px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700;
   line-height: 1.3; background: color-mix(in srgb, var(--brand) 20%, var(--surface));
 }
-.stay-exit-meta { color: var(--muted); font-size: .88rem; line-height: 1.35; }
+.stay-exit-meta { display: grid; gap: 2px; color: var(--muted); font-size: .88rem; line-height: 1.35; }
+.stay-exit-meta strong { color: var(--ink); font-weight: 800; }
 .stay-exit-warn { font-size: .86rem; font-weight: 700; line-height: 1.35; }
 .stay-exit-card[data-state='full'] { border-style: dashed; background: #f3f1ef; color: #6b625c; }
 .stay-exit-card[data-state='full'] .stay-exit-tag { background: #e4e0dc; }

@@ -23,7 +23,7 @@ function durationLabel(hours) {
   const wholeDays = Math.floor(hours / 24)
   const remainingHours = hours % 24
   return [wholeDays ? `${wholeDays} ${wholeDays === 1 ? 'diária' : 'diárias'}` : '',
-    remainingHours ? `${remainingHours} h` : ''].filter(Boolean).join(' e ')
+    remainingHours ? `${remainingHours} h` : ''].filter(Boolean).join(' + ')
 }
 
 const RELATION_LABELS = {
@@ -274,10 +274,11 @@ export default function TimedStayPage() {
 
               {checkOutDate && optionsState.status === 'ready' && (
                 <div aria-live="polite">
-                  <p className="stay-label" id="stay-exit-time-label">Horário da saída</p>
+                  <p className="stay-label" id="stay-exit-time-label">Escolher horário de saída</p>
                   <p className="stay-caption">
-                    A saída acontece no mesmo horário da entrada ou 12 horas antes/depois dele.
-                    Retirada permitida das {exitWindow.start} às {exitWindow.end}.
+                    Você pode sair no mesmo horário da entrada ou 12 horas antes/depois dele. Cada 12 horas a
+                    mais ou a menos muda o valor em meia diária; veja em cada opção quanto tempo o pet fica e
+                    quanto será cobrado. Retirada permitida das {exitWindow.start} às {exitWindow.end}.
                   </p>
                   {candidates.length === 0 ? (
                     <div className="slots-empty">
@@ -300,7 +301,8 @@ export default function TimedStayPage() {
                             </span>
                             <span className="stay-exit-tag">{RELATION_LABELS[candidate.relation]}</span>
                             <span className="stay-exit-meta">
-                              {durationLabel(candidate.hours)} de permanência · {chargeUnitsLabel(candidate.units)} cobrada{candidate.units <= 1 ? '' : 's'}
+                              <span>Permanência: {durationLabel(candidate.hours)}</span>
+                              <strong>Cobrança: {chargeUnitsLabel(candidate.units)}</strong>
                             </span>
                             {status === 'outside' && (
                               <span className="stay-exit-warn">

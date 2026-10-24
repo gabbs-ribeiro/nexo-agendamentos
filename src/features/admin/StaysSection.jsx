@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import Notice from '../../components/Notice.jsx'
+import PhoneWhatsApp from '../../components/PhoneWhatsApp.jsx'
 import { listAdminStaysOnDate, setAdminStayStatus } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { formatBRL, formatInstant, todayInTz } from '../../lib/format.js'
@@ -80,7 +81,7 @@ export default function StaysSection({ business, date }) {
                   ? `${stay.charge_units} ${stay.charge_units === 1 ? 'diária cobrada' : 'diárias cobradas'}`
                   : nightsLabel(stay.nights)}</span>
                 <strong>{formatBRL(stay.total_price_cents)}</strong>
-                <a href={`tel:${stay.customer_phone}`}>{stay.customer_phone}</a>
+                <PhoneWhatsApp phone={stay.customer_phone} />
               </p>
               {stay.notes && (
                 <p className="booking-customer-note">
