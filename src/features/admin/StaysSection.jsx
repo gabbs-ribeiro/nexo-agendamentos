@@ -6,6 +6,11 @@ import { listAdminStaysOnDate, setAdminStayStatus } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { formatBRL, formatInstant, todayInTz } from '../../lib/format.js'
 import { formatShortDate, nightsLabel } from '../public-booking/stayDates.js'
+import TransportBadge from '../transport/TransportBadge.jsx'
+import TransportPanel from '../transport/TransportPanel.jsx'
+import { staySummary } from '../transport/reservationSummary.js'
+import { totalWithTransport } from '../transport/transportCalc.js'
+import { useTransportRequests } from '../transport/useTransport.js'
 import { STAY_PHASE_LABELS, canCompleteStay, stayPhase } from './stayView.js'
 
 // Hospedagens (pet hotel) que entram, saem ou estao hospedadas na data. Independe da agenda de horarios.
@@ -46,6 +51,7 @@ export default function StaysSection({ business, date }) {
   }
 
   const stays = state.status === 'ready' ? state.stays : []
+  const transport = useTransportRequests('stay', stays.map((stay) => stay.id))
   return (
     <section className="stay-admin stack-sm" aria-labelledby="stay-admin-title">
       <div className="stay-admin-heading">
@@ -80,14 +86,19 @@ export default function StaysSection({ business, date }) {
                 <span>{stay.charge_units != null
                   ? `${stay.charge_units} ${stay.charge_units === 1 ? 'diária cobrada' : 'diárias cobradas'}`
                   : nightsLabel(stay.nights)}</span>
-                <strong>{formatBRL(stay.total_price_cents)}</strong>
+                <strong>{formatBRL(totalWithTransport(stay.total_price_cents, transport.map[stay.id]))}</strong>
                 <PhoneWhatsApp phone={stay.customer_phone} />
               </p>
+              <TransportBadge request={transport.map[stay.id]} />
               {stay.notes && (
                 <p className="booking-customer-note">
                   <strong>Observação do cliente</strong>
                   <span>{stay.notes}</span>
                 </p>
+              )}
+              {transport.available && (
+                <TransportPanel kind="stay" reservation={staySummary(stay, business.timezone)}
+                  request={transport.map[stay.id]} onChanged={transport.reload} />
               )}
               {stay.status === 'confirmed' && (
                 <div className="stay-admin-actions">

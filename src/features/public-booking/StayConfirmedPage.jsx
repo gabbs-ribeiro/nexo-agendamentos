@@ -1,6 +1,7 @@
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { formatBRL, formatLongDate, whatsappUrl } from '../../lib/format.js'
 import { nightsLabel } from './stayDates.js'
+import TransportRequestCard from './TransportRequestCard.jsx'
 import { usePublic } from './usePublic.js'
 
 const storeKey = (slug) => `nexo:last-stay:${slug}`
@@ -54,6 +55,15 @@ export default function StayConfirmedPage() {
           </dl>
         </div>
       </article>
+
+      <TransportRequestCard
+        slug={slug}
+        business={business}
+        kind="stay"
+        bookingRef={stay.booking_ref}
+        serviceName={stay.service_name}
+        whenLabel={`${formatLongDate(stay.check_in)}${stay.check_in_time ? ` às ${stay.check_in_time}` : ''} → ${formatLongDate(stay.check_out)}${stay.check_out_time ? ` às ${stay.check_out_time}` : ''}`}
+      />
 
       <p className="muted">
         Guarde esta tela. Para alterar ou cancelar, entre em contato com o estabelecimento

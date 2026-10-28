@@ -1,5 +1,6 @@
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { formatBRL, formatLongDate, whatsappUrl } from '../../lib/format.js'
+import TransportRequestCard from './TransportRequestCard.jsx'
 import { usePublic } from './usePublic.js'
 
 const storeKey = (slug) => `nexo:last-period:${slug}`
@@ -40,6 +41,15 @@ export default function PeriodConfirmedPage() {
           </dl>
         </div>
       </article>
+      <TransportRequestCard
+        slug={slug}
+        business={business}
+        kind="daycare"
+        bookingRef={booking.booking_ref}
+        serviceName={booking.service_name}
+        whenLabel={`${formatLongDate(booking.date)} (${periodLabels[booking.period] ?? 'Creche'})`}
+      />
+
       <p className="muted">
         Guarde esta tela. Para alterar ou cancelar, entre em contato com o estabelecimento
         {wa ? <> pelo <a href={wa} target="_blank" rel="noopener noreferrer">WhatsApp</a></> : null}.

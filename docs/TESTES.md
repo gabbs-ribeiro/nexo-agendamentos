@@ -21,6 +21,7 @@
 | 12 | `tests/12_pet_hotel_stays.sql` | Capacidade 4; 5ª estadia esgota (`STAY_FULL`); noite da saída não conta; idempotência; hotel lotado não bloqueia banho e tosa e folga da agenda não bloqueia hotel; limite por telefone; datas inválidas; snapshot de preço; cancelar libera vaga; sem escrita direta; isolamento entre negócios; anon sem acesso | só PASS | ☐ executar após a migration `20261022000002` |
 | 13 | `tests/13_service_booking_models.sql` | Creche por manhã/tarde/integral, capacidade máxima de quatro em cada intervalo, preços por período, idempotência; hospedagem dentro das janelas configuradas, grade de 30 minutos, cobranças de 12h/24h/36h e capacidade máxima de quatro | só PASS | ☐ executar após `20261023000001` e `20261023000002` |
 | 14 | `tests/14_category_delete_and_service_reactivation.sql` | Categoria vinculada não pode ser excluída; categoria vazia pode ser excluída por membro; serviço arquivado pode ser reativado preservando a linha | só PASS | ☐ executar após `20261023000002` |
+| 15 | `tests/15_transport_delivery.sql` | Padrões 500/100; flag por serviço; pedido do cliente (endereço obrigatório, reenvio atualiza, travado depois da cotação); frete no banco (6 km = 2900; 6,5 km × 75 = 2450); confirmar/desfazer/cancelar/reabrir; sem escrita direta; reserva cancelada não cota; isolamento; anon só funções públicas | só PASS | ☐ executar após a migration `20261024000001` |
 
 No DEV, o responsável confirmou que as migrations 06 e 07 foram aplicadas e executou o teste 09. As verificações de catálogo avançaram; a falha atual indica que `get_available_slots` não filtrou o porte desativado. A migration `20261021000008_restore_active_size_slot_filter.sql` restaura esse filtro; aplique-a somente no DEV e rode novamente o teste 09, que verifica também a rejeição da reserva para a opção inativa. O schema `supabase_migrations.schema_migrations` não existe porque o projeto foi atualizado manualmente pelo SQL Editor; isso não informa quais scripts já foram executados. Confira o estado antes de reaplicar migrations. A migration 05 requer a 04; aplique/valide pendências e rode também 01, 04 e 10. As migrations `20261022000001` e `20261022000002` exigem as anteriores até a 08; depois delas rode 12, 11, 04 e 09. As migrations `20261023000001` e `20261023000002` devem ser conferidas/aplicadas nessa ordem; rode 13, 14 e 04 depois da 02. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não reaplique migrations não idempotentes sem conferir o schema.
 
@@ -132,4 +133,16 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] O resumo mostra entrada, saída, diárias cobradas e total; o valor confere com o devolvido pelo banco; Continuar leva aos dados e a reserva confirma.
 - [ ] Trocar o horário ou o dia da entrada limpa a saída escolhida e o resumo.
 - [ ] Teclado (Tab/Enter nos dias, horários e cards de saída), foco visível e sem rolagem horizontal em 320 px.
+
+**Leva e traz (manual no navegador, DEV, após a migration 20261024000001):**
+- [ ] Controle → editar um serviço: aparece "Oferecer leva e traz neste serviço"; ligar e salvar mostra o selo "🚗 Leva e traz" no cartão.
+- [ ] Controle → barra "Leva e traz": salvar taxa de partida e valor por km; o exemplo de 6 km acompanha os valores.
+- [ ] Cliente: após agendar um serviço com leva e traz, aparece "Precisa de leva e traz?"; serviço sem a opção não mostra nada. Endereço (rua, número e bairro obrigatórios) → "Consultar valor" → botão do WhatsApp do estabelecimento com mensagem pronta com o endereço e **sem valor**.
+- [ ] Início: caixa "Leva e traz" com "1 aguardando valor"; painel aberto mostra o endereço e o link do Maps.
+- [ ] Informar 6 km: memória de cálculo mostra 6 km, 24 km, R$ 24,00, taxa R$ 5,00 e frete R$ 29,00. "Salvar cotação" não altera o preço da reserva nas listas.
+- [ ] "Enviar valor pelo WhatsApp" abre a conversa com o número do cliente, valor e pergunta de confirmação/horário; fica desabilitado se os dados foram editados e não salvos.
+- [ ] "Confirmar leva e traz" (2 etapas) soma o frete ao total na lista e nos Detalhes do agendamento; "Desfazer confirmação" tira do total; "Cancelar pedido" tira o pedido e a etiqueta.
+- [ ] Mudar valor por km na calculadora oferece "Salvar esses valores como padrão"; reservas novas já abrem com os valores salvos.
+- [ ] Hospedagem e creche: o mesmo painel aparece no cartão da reserva.
+- [ ] 320 px sem rolagem horizontal; teclado (Tab/Enter) nos campos, botões e na barra expansível.
 

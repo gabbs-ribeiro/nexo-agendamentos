@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom'
 import { formatBRL, formatInstant } from '../../lib/format.js'
+import TransportBadge from '../transport/TransportBadge.jsx'
+import { totalWithTransport } from '../transport/transportCalc.js'
+import { useTransportRequests } from '../transport/useTransport.js'
 import { canCompleteBooking } from './bookingView.js'
 
 export default function BookingList({
@@ -10,6 +13,8 @@ export default function BookingList({
   completingBookingId,
   onComplete,
 }) {
+  const transport = useTransportRequests('booking', bookings.map((booking) => booking.id))
+
   if (bookings.length === 0) {
     return <p className="agenda-empty">{emptyText}</p>
   }
@@ -32,12 +37,13 @@ export default function BookingList({
                     <strong>{booking.pet_name}</strong>
                     <span>{booking.service_name} · {booking.customer_name}</span>
                   </div>
-                  <span className="booking-list-price">{formatBRL(booking.price_cents)}</span>
+                  <span className="booking-list-price">{formatBRL(totalWithTransport(booking.price_cents, transport.map[booking.id]))}</span>
                 </div>
                 <span className={`booking-status ${booking.status === 'completed' ? 'booking-status-completed' : 'booking-status-pending'}`}>
                   {booking.status === 'completed' ? 'Concluído' : 'Pendente'}
                 </span>
                 {booking.size_label && <span className="booking-size">{booking.size_label}</span>}
+                <TransportBadge request={transport.map[booking.id]} />
                 {booking.notes && (
                   <p className="booking-customer-note">
                     <strong>Observação do cliente</strong>

@@ -12,6 +12,11 @@ import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
 import { whatsappUrl } from '../../lib/format.js'
 import { bookingDetails, canCancelBooking } from './bookingView.js'
 import { useAdminBusiness } from './AdminBusinessContext.jsx'
+import TransportPanel from '../transport/TransportPanel.jsx'
+import { bookingSummary } from '../transport/reservationSummary.js'
+import { totalWithTransport } from '../transport/transportCalc.js'
+import { useTransportRequests } from '../transport/useTransport.js'
+import { formatBRL } from '../../lib/format.js'
 
 function DetailSection({ title, children }) {
   return (
@@ -51,6 +56,7 @@ export default function BookingDetailsPage() {
   const [cancelBusy, setCancelBusy] = useState(false)
   const [cancelError, setCancelError] = useState('')
   const [cancelSuccess, setCancelSuccess] = useState('')
+  const transport = useTransportRequests('booking', [bookingId])
 
   const load = useCallback(async () => {
     setState({ status: 'loading' })
@@ -168,9 +174,25 @@ export default function BookingDetailsPage() {
           ['Horário', `${view.start}–${view.end}`],
           ['Duração registrada', view.duration],
           ['Preço registrado', view.price],
+          ...(transport.map[booking.id]?.status === 'confirmed' ? [
+            ['Leva e traz', formatBRL(transport.map[booking.id].freight_cents)],
+            ['Total com leva e traz', formatBRL(totalWithTransport(booking.price_cents, transport.map[booking.id]))],
+          ] : []),
           ['Situação', view.status],
         ]} />
       </DetailSection>
+
+      {transport.available && (
+        <DetailSection title="Leva e traz">
+          <TransportPanel
+            kind="booking"
+            reservation={bookingSummary(booking, business.timezone)}
+            request={transport.map[booking.id]}
+            onChanged={transport.reload}
+            defaultOpen={Boolean(transport.map[booking.id]) && transport.map[booking.id].status !== 'cancelled'}
+          />
+        </DetailSection>
+      )}
 
       <DetailSection title="Animal">
         {edit ? (

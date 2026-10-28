@@ -19,6 +19,7 @@ import BookingList from './BookingList.jsx'
 import BookingShareCard from './BookingShareCard.jsx'
 import ManualBookingDialog from './ManualBookingDialog.jsx'
 import StaysSection from './StaysSection.jsx'
+import TransportInbox from '../transport/TransportInbox.jsx'
 import DaycareSection from './DaycareSection.jsx'
 
 function greeting(timezone) {
@@ -311,6 +312,8 @@ export default function AgendaPage({ view }) {
         />
         </div>
       )}
+
+      {isHome && <TransportInbox />}
 
       <StaysSection business={business} date={date} />
       <DaycareSection business={business} date={date} />

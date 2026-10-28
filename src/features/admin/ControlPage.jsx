@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import ControlBar, { IconClock, IconList, IconProfile, IconSizes, IconTag } from '../../components/ControlBar.jsx'
 import Notice from '../../components/Notice.jsx'
+import { calcFreight, centsToInput, parseMoneyToCents } from '../transport/transportCalc.js'
+import { setCachedTransportDefaults } from '../transport/useTransport.js'
 import {
   archiveService,
   deleteServiceCategory,
@@ -10,6 +12,7 @@ import {
   removeBusinessLogo,
   saveBusinessSize,
   saveServiceCategory,
+  updateTransportDefaults,
   saveService,
   reactivateService,
   setBusinessSizeActive,
@@ -45,6 +48,7 @@ function newDraft(sizes, categories) {
     name: '',
     description: '',
     booking_mode: 'hourly',
+    transport_enabled: false,
     settings: {
       morning_start: '',
       morning_end: '',
@@ -72,6 +76,10 @@ export default function ControlPage() {
   const updateAdminBusiness = useUpdateAdminBusiness()
   const [state, setState] = useState({ status: 'loading' })
   const [profile, setProfile] = useState(null)
+  const [transportDraft, setTransportDraft] = useState({ start: '5,00', kmPrice: '1,00' })
+  const [transportError, setTransportError] = useState('')
+  const [transportNotice, setTransportNotice] = useState('')
+  const [savingTransport, setSavingTransport] = useState(false)
   const [profileDraft, setProfileDraft] = useState({ name: '', primary_color: '#ef946f' })
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoError, setPhotoError] = useState('')
@@ -105,6 +113,12 @@ export default function ControlPage() {
         listBusinessCatalog(business.id),
       ])
       setProfile(businessProfile)
+      if (businessProfile.transport_start_fee_cents !== undefined) {
+        setTransportDraft({
+          start: centsToInput(businessProfile.transport_start_fee_cents),
+          kmPrice: centsToInput(businessProfile.transport_km_price_cents),
+        })
+      }
       setProfileDraft({
         name: businessProfile.name,
         primary_color: businessProfile.primary_color,
@@ -157,6 +171,7 @@ export default function ControlPage() {
       name: service.name,
       description: service.description ?? '',
       booking_mode: normalizeBookingMode(service.booking_mode),
+      transport_enabled: service.transport_enabled === true,
       settings: {
         morning_start: service.settings?.morning_start?.slice(0, 5) ?? '',
         morning_end: service.settings?.morning_end?.slice(0, 5) ?? '',
@@ -188,6 +203,36 @@ export default function ControlPage() {
         },
       },
     }))
+  }
+
+  const transportSupported = profile?.transport_start_fee_cents !== undefined
+  const transportStart = parseMoneyToCents(transportDraft.start)
+  const transportKmPrice = parseMoneyToCents(transportDraft.kmPrice)
+  const transportExample = transportStart != null && transportKmPrice != null
+    ? calcFreight({ distanceKm: 6, startFeeCents: transportStart, kmPriceCents: transportKmPrice }) : null
+
+  async function saveTransportDefaults(event) {
+    event.preventDefault()
+    if (savingTransport || !transportSupported) return
+    setTransportError('')
+    setTransportNotice('')
+    if (transportStart == null || transportKmPrice == null) {
+      setTransportError('Informe a taxa de partida e o valor por km em reais (até R$ 1.000,00).')
+      return
+    }
+    setSavingTransport(true)
+    try {
+      await updateTransportDefaults(business.id, { startFeeCents: transportStart, kmPriceCents: transportKmPrice })
+      setCachedTransportDefaults(business.id, { startFeeCents: transportStart, kmPriceCents: transportKmPrice })
+      setProfile((current) => ({
+        ...current, transport_start_fee_cents: transportStart, transport_km_price_cents: transportKmPrice,
+      }))
+      setTransportNotice('Valores do leva e traz salvos. Valem para as próximas cotações.')
+    } catch (error) {
+      setTransportError(messageFor(error))
+    } finally {
+      setSavingTransport(false)
+    }
   }
 
   async function saveProfile(event) {
@@ -400,6 +445,8 @@ export default function ControlPage() {
         ...draft,
         name: draft.name.trim(),
         booking_mode: normalizeBookingMode(draft.booking_mode),
+        // Sem a migration do leva e traz a coluna nao existe: nao envia.
+        transport_enabled: transportSupported ? Boolean(draft.transport_enabled) : undefined,
       }, options, bookingSettings)
       setDraft(null)
       setServiceNotice('Serviço salvo. As alterações valem para novos agendamentos.')
@@ -634,6 +681,7 @@ export default function ControlPage() {
                         <span className="service-mode-badge" data-mode={normalizeBookingMode(service.booking_mode)}>
                           {BOOKING_MODE_LABELS[normalizeBookingMode(service.booking_mode)]}
                         </span>
+                        {service.transport_enabled && <span className="service-mode-badge" data-mode="transport">🚗 Leva e traz</span>}
                         {service.archived_at && <span className="booking-status">Arquivado</span>}
                       </div>
                     </div>
@@ -723,6 +771,16 @@ export default function ControlPage() {
                 ))}
               </div>
             </fieldset>
+            {transportSupported && (
+              <label className="transport-toggle">
+                <input type="checkbox" checked={Boolean(draft.transport_enabled)}
+                  onChange={(event) => setDraft((current) => ({ ...current, transport_enabled: event.target.checked }))} />
+                <span className="transport-toggle-copy">
+                  <strong><span aria-hidden="true">🚗</span> Oferecer leva e traz neste serviço</strong>
+                  <small>Depois de agendar, o cliente pode pedir que a gente busque e leve o pet. O valor você calcula pelo painel.</small>
+                </span>
+              </label>
+            )}
             {draft.booking_mode === 'periods' && (
               <fieldset className="service-booking-settings stack-sm">
                 <legend>Horários dos períodos</legend>
@@ -817,6 +875,41 @@ export default function ControlPage() {
             </button>
           </form>}
         </dialog>
+      </ControlBar>
+
+      <ControlBar icon={<span className="control-bar-emoji" aria-hidden="true">🚗</span>} tone="sand" title="Leva e traz"
+        summary={transportSupported ? `Taxa R$ ${transportDraft.start} · R$ ${transportDraft.kmPrice}/km` : 'Taxa e valor por km'}>
+        {!transportSupported ? (
+          <p className="muted">Este recurso ainda não está disponível neste ambiente. Peça a atualização do banco de dados.</p>
+        ) : (
+          <form className="control-form" onSubmit={saveTransportDefaults}>
+            <p className="muted">
+              Valores usados na calculadora de cada reserva. Você informa só a distância de ida; o frete considera ida e volta
+              da busca e da entrega (4×) e soma a taxa de partida. Ative o leva e traz em cada serviço, ao editá-lo.
+            </p>
+            <div className="transport-grid">
+              <div className="field"><label htmlFor="transport-start">Taxa de partida (R$)</label>
+                <input id="transport-start" type="text" inputMode="decimal" autoComplete="off" value={transportDraft.start}
+                  onChange={(event) => setTransportDraft((current) => ({ ...current, start: event.target.value }))} />
+                <span className="hint">Cobrada uma vez por reserva.</span></div>
+              <div className="field"><label htmlFor="transport-km-price">Valor por km (R$)</label>
+                <input id="transport-km-price" type="text" inputMode="decimal" autoComplete="off" value={transportDraft.kmPrice}
+                  onChange={(event) => setTransportDraft((current) => ({ ...current, kmPrice: event.target.value }))} />
+                <span className="hint">Aplicado ao total de km (ida e volta).</span></div>
+            </div>
+            {transportExample && (
+              <p className="transport-example">
+                Exemplo: cliente a 6 km → {transportExample.totalKm} km × {formatBRL(transportKmPrice)} + {formatBRL(transportStart)} de taxa
+                = <strong>{formatBRL(transportExample.freightCents)}</strong>
+              </p>
+            )}
+            <ErrorNotice>{transportError}</ErrorNotice>
+            {transportNotice && <Notice>{transportNotice}</Notice>}
+            <button className="btn btn-primary" type="submit" disabled={savingTransport}>
+              {savingTransport ? 'Salvando…' : 'Salvar valores'}
+            </button>
+          </form>
+        )}
       </ControlBar>
       </div>
 

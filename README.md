@@ -44,3 +44,4 @@ Projetos gratuitos pausam após cerca de uma semana sem atividade. Durante o pil
 
 ## Hospedagem
 Vercel Hobby é para uso pessoal/não comercial. Como o sistema atende um negócio real, confirme nos termos da Vercel se o enquadramento é aceitável antes de publicar; caso contrário, use outro host estático ou plano adequado.
+- A migration `20261024000001_transport_delivery.sql` cria o leva e traz (frete por reserva, com km informado manualmente). Aplique somente em DEV e rode os testes SQL 15 e 04.

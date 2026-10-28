@@ -12,6 +12,7 @@ allowed_anon(fn) as (values
   ('get_public_business'), ('list_public_services'),
   ('list_public_service_categories'), ('get_available_slots'), ('create_public_booking'),
   ('get_stay_quote'), ('create_public_stay'),
+  ('get_transport_state'), ('request_transport'),
   ('get_public_booking_models'), ('get_period_quote'), ('create_public_period_booking'),
   ('get_timed_stay_options'), ('create_public_timed_stay')),
 -- funcoes que usuarios logados podem executar (as publicas + admin)
@@ -23,6 +24,7 @@ allowed_auth(fn) as (values
   ('admin_create_time_block'), ('admin_update_booking_internal_notes'),
   ('admin_replace_business_hours'), ('admin_delete_service_category'),
   ('get_stay_quote'), ('create_public_stay'), ('admin_set_stay_status'),
+  ('get_transport_state'), ('request_transport'), ('admin_save_transport_quote'), ('admin_set_transport_status'),
   ('get_public_booking_models'), ('get_period_quote'), ('create_public_period_booking'),
   ('get_timed_stay_options'), ('create_public_timed_stay'),
   ('admin_save_service_booking_settings'), ('admin_list_daycare_on_date'),
@@ -34,7 +36,8 @@ forbidden_auth(tbl, priv) as (values
   ('business_members','insert'), ('business_members','update'), ('business_members','delete'),
   ('businesses','insert'), ('businesses','delete'),
   ('services','delete'), ('service_options','delete'), ('service_categories','delete'),
-  ('stay_bookings','insert'), ('stay_bookings','update'), ('stay_bookings','delete'), ('stay_bookings','truncate'))
+  ('stay_bookings','insert'), ('stay_bookings','update'), ('stay_bookings','delete'), ('stay_bookings','truncate'),
+  ('transport_requests','insert'), ('transport_requests','update'), ('transport_requests','delete'), ('transport_requests','truncate'))
 select * from (
 
   -- 1) tabela sem RLS

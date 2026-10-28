@@ -1,5 +1,6 @@
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { SIZE_LABELS, formatBRL, formatDuration, formatInstant, whatsappUrl } from '../../lib/format.js'
+import TransportRequestCard from './TransportRequestCard.jsx'
 import { usePublic } from './usePublic.js'
 
 const storeKey = (slug) => `nexo:last-booking:${slug}`
@@ -50,6 +51,15 @@ export default function ConfirmedPage() {
           </dl>
         </div>
       </article>
+
+      <TransportRequestCard
+        slug={slug}
+        business={business}
+        kind="booking"
+        bookingRef={booking.booking_ref}
+        serviceName={booking.service_name}
+        whenLabel={`${date} às ${time}`}
+      />
 
       <p className="muted">
         Guarde esta tela. Para remarcar ou cancelar, entre em contato com o estabelecimento

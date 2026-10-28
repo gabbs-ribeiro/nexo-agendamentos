@@ -5,6 +5,11 @@ import PhoneWhatsApp from '../../components/PhoneWhatsApp.jsx'
 import { listAdminDaycareOnDate, setAdminDaycareStatus } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { formatBRL, formatInstant } from '../../lib/format.js'
+import TransportBadge from '../transport/TransportBadge.jsx'
+import TransportPanel from '../transport/TransportPanel.jsx'
+import { daycareSummary } from '../transport/reservationSummary.js'
+import { totalWithTransport } from '../transport/transportCalc.js'
+import { useTransportRequests } from '../transport/useTransport.js'
 
 const PERIOD_LABELS = { morning: 'Manhã', afternoon: 'Tarde', full_day: 'Integral' }
 
@@ -43,6 +48,7 @@ export default function DaycareSection({ business, date }) {
   }
 
   const bookings = state.status === 'ready' ? state.bookings : []
+  const transport = useTransportRequests('daycare', bookings.map((booking) => booking.id))
   const canComplete = (booking) => booking.status === 'confirmed' && new Date(booking.ends_at) <= new Date()
 
   return (
@@ -73,10 +79,15 @@ export default function DaycareSection({ business, date }) {
                 </div>
                 <p className="stay-admin-meta">
                   <span>{start.date} · {start.time}–{end.time}</span>
-                  <strong>{formatBRL(booking.price_cents)}</strong>
+                  <strong>{formatBRL(totalWithTransport(booking.price_cents, transport.map[booking.id]))}</strong>
                   <PhoneWhatsApp phone={booking.customer_phone} />
                 </p>
+                <TransportBadge request={transport.map[booking.id]} />
                 {booking.notes && <p className="booking-customer-note"><strong>Observação do cliente</strong><span>{booking.notes}</span></p>}
+                {transport.available && (
+                  <TransportPanel kind="daycare" reservation={daycareSummary(booking, business.timezone)}
+                    request={transport.map[booking.id]} onChanged={transport.reload} />
+                )}
                 {booking.status === 'confirmed' && (
                   <div className="stay-admin-actions">
                     {canComplete(booking) && (
