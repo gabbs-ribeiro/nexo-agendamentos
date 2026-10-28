@@ -11,6 +11,8 @@ export const ERROR_MESSAGES = {
   INVALID_INPUT: 'Confira os dados informados e tente novamente.',
   NOT_FOUND: 'Página não encontrada.',
   BOOKING_CONFLICT: 'Há um agendamento nesse período. Cancele-o antes de bloquear.',
+  TRANSPORT_UNAVAILABLE: 'Este serviço não oferece leva e traz, ou o agendamento não está mais ativo.',
+  TRANSPORT_LOCKED: 'Esse pedido de leva e traz já foi cotado. Para alterar, fale com o estabelecimento.',
   INVALID_TRANSITION: 'Essa mudança de status não é permitida.',
   INTERNAL_ERROR: 'Não foi possível concluir. Tente novamente em instantes.',
   NETWORK: 'Sem conexão com o serviço. Verifique sua internet e tente novamente.',

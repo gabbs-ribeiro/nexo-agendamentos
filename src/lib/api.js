@@ -352,14 +352,23 @@ function throwIfApiError(error, operation) {
   throw new ApiError('NETWORK')
 }
 
+const UNDEFINED_COLUMN = '42703' // Postgres: coluna ainda nao existe (migration nao aplicada)
+
 export async function getBusinessControl(businessId) {
-  const { data, error } = await supabase
-    .from('businesses')
-    .select('id, name, logo_path, primary_color, contact_phone')
-    .eq('id', businessId)
-    .single()
+  const base = 'id, name, logo_path, primary_color, contact_phone'
+  const run = (columns) => supabase.from('businesses').select(columns).eq('id', businessId).single()
+  let { data, error } = await run(`${base}, transport_start_fee_cents, transport_km_price_cents`)
+  // Sem a migration do leva e traz o Controle continua abrindo (sem a secao de valores).
+  if (error?.code === UNDEFINED_COLUMN) ({ data, error } = await run(base))
   throwIfApiError(error, 'business control select')
   return data
+}
+
+async function fetchCatalogServices(businessId) {
+  const base = 'id, business_id, category_id, name, description, booking_mode, is_active, archived_at'
+  const run = (columns) => supabase.from('services').select(columns).eq('business_id', businessId).order('name')
+  const result = await run(`${base}, transport_enabled`)
+  return result.error?.code === UNDEFINED_COLUMN ? run(base) : result
 }
 
 export async function listBusinessCatalog(businessId) {
@@ -374,10 +383,7 @@ export async function listBusinessCatalog(businessId) {
       .eq('business_id', businessId)
       .order('sort_order')
       .order('name'),
-    supabase.from('services')
-      .select('id, business_id, category_id, name, description, booking_mode, is_active, archived_at')
-      .eq('business_id', businessId)
-      .order('name'),
+    fetchCatalogServices(businessId),
     supabase.from('service_options')
       .select('id, business_id, service_id, size, price_cents, duration_minutes, morning_price_cents, afternoon_price_cents, full_day_price_cents, is_active')
       .eq('business_id', businessId),
@@ -485,6 +491,11 @@ export async function deleteServiceCategory(categoryId) {
   await adminRpc('admin_delete_service_category', { p_category_id: categoryId })
 }
 
+// So grava transport_enabled quando a tela conhece a coluna (migration aplicada).
+function transportColumn(service) {
+  return typeof service.transport_enabled === 'boolean' ? { transport_enabled: service.transport_enabled } : {}
+}
+
 export async function saveService(businessId, service, options, settings) {
   const bookingMode = ['daily', 'periods', 'stay'].includes(service.booking_mode)
     ? service.booking_mode
@@ -496,6 +507,7 @@ export async function saveService(businessId, service, options, settings) {
         name: service.name,
         description: service.description,
         booking_mode: bookingMode,
+        ...transportColumn(service),
       })
       .eq('business_id', businessId)
       .eq('id', service.id)
@@ -508,6 +520,7 @@ export async function saveService(businessId, service, options, settings) {
         name: service.name,
         description: service.description,
         booking_mode: bookingMode,
+        ...transportColumn(service),
         is_active: true,
       })
       .select('id')
@@ -576,3 +589,115 @@ export async function reactivateService(businessId, serviceId) {
   throwIfApiError(error, 'service reactivate')
   if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
 }
+
+// ---------------------------------------------------------------------------
+// Leva e traz. Tipos de reserva: 'booking' (horario), 'stay' (hospedagem), 'daycare' (creche).
+// ---------------------------------------------------------------------------
+const TRANSPORT_KIND_COLUMN = { booking: 'booking_id', stay: 'stay_id', daycare: 'daycare_id' }
+const TRANSPORT_COLUMNS = 'id, business_id, booking_id, stay_id, daycare_id, status, requested_by, street, street_number, neighborhood, city, complement, reference, distance_km, start_fee_cents, km_price_cents, freight_cents, quoted_at, confirmed_at, created_at'
+
+/** Cliente: { enabled, request_status } da reserva. */
+export async function getTransportState(slug, kind, ref) {
+  const data = await rpc('get_transport_state', { p_slug: slug, p_kind: kind, p_ref: ref })
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
+/** Cliente: registra o pedido com o endereco (sem valor). */
+export async function requestTransport({ slug, kind, ref, address }) {
+  const data = await rpc('request_transport', {
+    p_slug: slug,
+    p_kind: kind,
+    p_ref: ref,
+    p_street: address.street,
+    p_number: address.number,
+    p_neighborhood: address.neighborhood,
+    p_city: address.city || null,
+    p_complement: address.complement || null,
+    p_reference: address.reference || null,
+  })
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
+/** Painel: pedidos das reservas listadas. null = recurso indisponivel (migration nao aplicada). */
+export async function listTransportFor(businessId, kind, ids) {
+  if (!ids.length) return []
+  const { data, error } = await supabase
+    .from('transport_requests')
+    .select(TRANSPORT_COLUMNS)
+    .eq('business_id', businessId)
+    .in(TRANSPORT_KIND_COLUMN[kind], ids)
+  if (error || !Array.isArray(data)) {
+    if (error) console.error('[transport select]', error.code)
+    return null
+  }
+  return data
+}
+
+/** Painel: pedidos que ainda pedem acao (solicitado ou cotado). null = indisponivel. */
+export async function listOpenTransport(businessId) {
+  const { data, error } = await supabase
+    .from('transport_requests')
+    .select(TRANSPORT_COLUMNS)
+    .eq('business_id', businessId)
+    .in('status', ['requested', 'quoted'])
+    .order('created_at', { ascending: true })
+    .limit(50)
+  if (error || !Array.isArray(data)) {
+    if (error) console.error('[transport open select]', error.code)
+    return null
+  }
+  return data
+}
+
+/** Painel: resumo das reservas ligadas aos pedidos (para a caixa de pedidos do Inicio). */
+export async function listReservationsForTransport(businessId, requests) {
+  const ids = (column) => requests.map((request) => request[column]).filter(Boolean)
+  const select = (table, columns, idList) => idList.length
+    ? supabase.from(table).select(columns).eq('business_id', businessId).in('id', idList)
+    : Promise.resolve({ data: [], error: null })
+  const common = 'id, status, service_name, customer_name, customer_phone, pet_name'
+  const [bookings, stays, daycare] = await Promise.all([
+    select('bookings', `${common}, starts_at, price_cents`, ids('booking_id')),
+    select('stay_bookings', `${common}, check_in, check_out, total_price_cents`, ids('stay_id')),
+    select('daycare_bookings', `${common}, period, starts_at, price_cents`, ids('daycare_id')),
+  ])
+  for (const result of [bookings, stays, daycare]) throwIfApiError(result.error, 'transport reservations select')
+  return { booking: bookings.data ?? [], stay: stays.data ?? [], daycare: daycare.data ?? [] }
+}
+
+/** Painel: salva a cotacao. O frete e calculado no banco a partir dos km de ida informados. */
+export function saveTransportQuote({ kind, reservationId, address, distanceKm, startFeeCents, kmPriceCents }) {
+  return adminRpc('admin_save_transport_quote', {
+    p_kind: kind,
+    p_reservation_id: reservationId,
+    p_street: address.street,
+    p_number: address.number || null,
+    p_neighborhood: address.neighborhood || null,
+    p_city: address.city || null,
+    p_complement: address.complement || null,
+    p_reference: address.reference || null,
+    p_distance_km: distanceKm,
+    p_start_fee_cents: startFeeCents,
+    p_km_price_cents: kmPriceCents,
+  })
+}
+
+/** Painel: 'confirmed' soma no total, 'quoted' desfaz a confirmacao, 'cancelled' encerra o pedido. */
+export function setTransportStatus(requestId, status) {
+  return adminRpc('admin_set_transport_status', { p_request_id: requestId, p_status: status })
+}
+
+/** Painel: valores padrao da taxa de partida e do valor por km. */
+export async function updateTransportDefaults(businessId, { startFeeCents, kmPriceCents }) {
+  const { data, error } = await supabase
+    .from('businesses')
+    .update({ transport_start_fee_cents: startFeeCents, transport_km_price_cents: kmPriceCents })
+    .eq('id', businessId)
+    .select('id')
+    .maybeSingle()
+  throwIfApiError(error, 'transport defaults update')
+  if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
+}
+
