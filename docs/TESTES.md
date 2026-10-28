@@ -146,3 +146,8 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Hospedagem e creche: o mesmo painel aparece no cartão da reserva.
 - [ ] 320 px sem rolagem horizontal; teclado (Tab/Enter) nos campos, botões e na barra expansível.
 
+**Ajustes de WhatsApp e rótulos (manual, de preferência em celular real):**
+- [ ] Detalhes do agendamento (painel): tocar no telefone do cliente abre a conversa no WhatsApp com aquele número.
+- [ ] Leva e traz (cliente): preencher o endereço e tocar uma vez em "Consultar valor" abre o WhatsApp do estabelecimento com a mensagem pronta (endereço, linha "Mapa:" com o link e sem valor). Se o navegador bloquear a aba, o botão "Consultar valor pelo WhatsApp" aparece e funciona.
+- [ ] Hospedagem (cliente): aparece "Escolher horário de entrada" acima dos horários de entrada e "Escolher horário de saída" acima das opções de saída.
+

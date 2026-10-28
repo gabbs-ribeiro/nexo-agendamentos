@@ -47,10 +47,17 @@ export default function TransportRequestCard({ slug, business, kind, bookingRef,
     setSubmitting(true)
     setError('')
     const address = Object.fromEntries(Object.entries(form).map(([name, value]) => [name, value.trim()]))
+    const url = customerWhatsappUrl({ businessPhone: business.contact_phone, serviceName, whenLabel, code, address })
+    // A aba do WhatsApp e aberta AQUI, no clique (antes de esperar o servidor), para o navegador nao bloquear.
+    // Depois que o pedido e registrado ela recebe o link com a mensagem pronta; se falhar, e fechada.
+    const popup = url ? window.open('about:blank', '_blank') : null
+    if (popup) { try { popup.opener = null } catch { /* sem opener: segue */ } }
     try {
       await requestTransport({ slug, kind, ref: bookingRef, address })
       setSent(address)
+      if (popup) popup.location.href = url
     } catch (err) {
+      if (popup) popup.close()
       setError(messageFor(err))
     } finally {
       setSubmitting(false)
@@ -63,7 +70,7 @@ export default function TransportRequestCard({ slug, business, kind, bookingRef,
     return (
       <section className="transport-request-card" aria-live="polite">
         <h2><span aria-hidden="true">🚗</span> Pedido de leva e traz registrado</h2>
-        <p>O estabelecimento vai calcular o valor e combinar a busca com você.</p>
+        <p>O estabelecimento vai calcular o valor e combinar a busca com você. O WhatsApp abre com a mensagem pronta; se não abrir, toque no botão abaixo.</p>
         {url
           ? <a className="btn btn-primary" href={url} target="_blank" rel="noopener noreferrer">Consultar valor pelo WhatsApp</a>
           : <p className="muted">O estabelecimento entrará em contato para informar o valor.</p>}

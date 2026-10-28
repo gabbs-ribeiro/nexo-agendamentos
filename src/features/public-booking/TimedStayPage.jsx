@@ -213,7 +213,7 @@ export default function TimedStayPage() {
 
             {checkIn && (
               <div aria-live="polite">
-                <p className="stay-label" id="stay-entry-time-label">Horário da entrada</p>
+                <p className="stay-label" id="stay-entry-time-label">Escolher horário de entrada</p>
                 <p className="stay-caption">
                   Entrada das {short(settings.check_in_start)} às {short(settings.check_in_end)}, a cada 30 minutos.
                 </p>

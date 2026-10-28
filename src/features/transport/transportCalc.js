@@ -103,6 +103,7 @@ export function customerWhatsappUrl({ businessPhone, serviceName, whenLabel, cod
     '',
     'Meu endereço:',
     ...addressLines(address),
+    `Mapa: ${mapsSearchUrl(address)}`,
     '',
     'Pode me informar o valor?',
   ].filter((line, index, all) => line !== '' || (index > 0 && all[index - 1] !== ''))

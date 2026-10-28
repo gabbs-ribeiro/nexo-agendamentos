@@ -9,6 +9,7 @@ import {
   updateAdminBookingInternalNotes,
 } from '../../lib/api.js'
 import { ERROR_MESSAGES, messageFor } from '../../lib/errors.js'
+import PhoneWhatsApp from '../../components/PhoneWhatsApp.jsx'
 import { whatsappUrl } from '../../lib/format.js'
 import { bookingDetails, canCancelBooking } from './bookingView.js'
 import { useAdminBusiness } from './AdminBusinessContext.jsx'
@@ -239,7 +240,7 @@ export default function BookingDetailsPage() {
         ) : (
           <DetailRows rows={[
             ['Nome', booking.customer_name],
-            ['Telefone', booking.customer_phone],
+            ['Telefone', <PhoneWhatsApp key="phone" phone={booking.customer_phone} />],
           ]} />
         )}
         {whatsapp && (
