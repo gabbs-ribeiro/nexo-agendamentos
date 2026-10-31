@@ -1076,3 +1076,72 @@ button.stay-exit-card:focus-visible { outline: 3px solid var(--brand); outline-o
   .transport-grid { grid-template-columns: minmax(0, 1fr); }
   .transport-actions .btn { width: 100%; }
 }
+.btn-quiet:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Horário de funcionamento: cartões por dia */
+.hours-form { display: grid; gap: 16px; }
+.hours-list { display: grid; gap: 12px; }
+.hours-day {
+  display: grid; gap: 14px; min-width: 0; padding: 16px; border: 1px solid var(--line);
+  border-radius: 20px; background: #fffaf4;
+}
+.hours-day[data-open='false'] { background: #f7f2ed; }
+.hours-day-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.hours-day-title { min-width: 0; }
+.hours-day-title h3 { margin: 0; font-size: 1.1rem; }
+.hours-summary { margin: 2px 0 0; color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
+.hours-pill {
+  flex: none; padding: 4px 12px; border-radius: 999px; font-size: .8rem; font-weight: 800;
+  color: #6b625c; background: #e9e3dd;
+}
+.hours-pill[data-open='true'] { color: #1e5a3a; background: #d9f1e2; }
+.hours-intervals { display: grid; gap: 10px; }
+.hours-interval {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: end; gap: 10px;
+  padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface);
+}
+.hours-time { display: grid; gap: 6px; min-width: 0; }
+.hours-time label { font-weight: 800; font-size: .88rem; }
+.hours-time input[type='time'] {
+  width: 100%; min-width: 0; min-height: 48px; padding: 8px 12px; border: 1.5px solid var(--line);
+  border-radius: 14px; background: #fff; color: var(--ink); font: inherit; font-size: 1.05rem;
+}
+.hours-time input[type='time']:focus-visible { outline: 3px solid var(--brand, var(--accent)); outline-offset: 2px; }
+.hours-sep { align-self: end; padding-bottom: 14px; color: var(--muted); font-weight: 700; }
+.hours-remove { align-self: end; min-height: 48px; padding: 0 4px; color: #a33a2a; }
+.hours-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.hours-add { width: auto; min-height: 44px; padding-inline: 18px; }
+.hours-copy { font-size: .92rem; }
+@media (max-width: 520px) {
+  .hours-day { padding: 14px; }
+  .hours-interval { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hours-sep { display: none; }
+  .hours-remove { grid-column: 1 / -1; justify-self: end; min-height: 36px; }
+  .hours-add { width: 100%; }
+}
+
+/* Agendamento manual: etapas */
+.manual-section { display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #fffaf4; }
+.manual-section h3 { margin: 0; font-size: 1.02rem; }
+.manual-label { margin: 0; font-weight: 800; font-size: .92rem; }
+.manual-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.manual-chip {
+  min-height: 44px; padding: 8px 16px; border: 1.5px solid var(--line); border-radius: 999px;
+  background: var(--surface); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer;
+}
+.manual-chip[aria-pressed='true'] { border-color: var(--brand); background: #ffe0ce; }
+.manual-chip:focus-visible, .manual-period:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.manual-mode-tag {
+  width: fit-content; margin: 0; padding: 3px 10px; border-radius: 999px; font-size: .8rem; font-weight: 800;
+  color: #5b4a2e; background: #f3e6c9;
+}
+.manual-mode-tag[data-mode='periods'] { color: #3d4f7a; background: #dfe6f7; }
+.manual-mode-tag[data-mode='stay'] { color: #1e5a3a; background: #d9f1e2; }
+.manual-period-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.manual-period {
+  display: grid; justify-items: center; gap: 2px; min-width: 0; padding: 10px 6px; border: 1.5px solid var(--line);
+  border-radius: 14px; background: var(--surface); color: var(--ink); font: inherit; cursor: pointer;
+}
+.manual-period span { color: var(--muted); font-size: .82rem; }
+.manual-period[aria-pressed='true'] { border-color: var(--brand); background: #ffe0ce; }
+.manual-quote { margin: 0; padding: 10px 12px; border-radius: 12px; background: #ffe0ce; }

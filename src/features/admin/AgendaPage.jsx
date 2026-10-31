@@ -290,7 +290,7 @@ export default function AgendaPage({ view }) {
           {createdFeedback.uncertain
             ? 'Não foi possível confirmar a criação. Confira a agenda antes de tentar novamente.'
             : createdFeedback.internalNoteSaved
-              ? 'Agendamento criado com sucesso.'
+              ? `Agendamento criado com sucesso${createdFeedback.label ? `: ${createdFeedback.label}` : ''}.`
               : <>Agendamento criado, mas não foi possível confirmar o salvamento da anotação interna. <Link to={`/admin/agendamentos/${createdFeedback.bookingId}`}>Abra os detalhes para conferir e salvar a anotação.</Link></>}
         </Notice>
       )}
@@ -315,8 +315,8 @@ export default function AgendaPage({ view }) {
 
       {isHome && <TransportInbox />}
 
-      <StaysSection business={business} date={date} />
-      <DaycareSection business={business} date={date} />
+      <StaysSection key={`stays-${reload}`} business={business} date={date} />
+      <DaycareSection key={`daycare-${reload}`} business={business} date={date} />
 
       {isHome && <BookingShareCard slug={business.slug} businessName={business.name} />}
 

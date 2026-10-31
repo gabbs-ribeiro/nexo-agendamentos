@@ -41,6 +41,7 @@ export default function TransportPanel({ kind, reservation, request, onChanged, 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [fallbackUrl, setFallbackUrl] = useState('') // quando o navegador bloqueia a aba do WhatsApp
 
   // Quando o pedido salvo muda (salvou, confirmou, cancelou), o formulario volta a refletir o que esta no banco.
   const savedKey = [request?.id, request?.status, request?.distance_km, request?.start_fee_cents,
@@ -98,6 +99,64 @@ export default function TransportPanel({ kind, reservation, request, onChanged, 
     } finally {
       setBusy(false)
       setPending(null)
+    }
+  }
+
+  // "Enviar valor pelo WhatsApp" funciona mesmo sem salvar antes: salva a cotacao e abre a conversa.
+  async function sendWhatsapp() {
+    if (busy) return
+    setError('')
+    setNotice('')
+    setFallbackUrl('')
+    const needsSave = !saved || dirty
+    if (needsSave && !calc) {
+      setError('Informe a distância de ida (km), a taxa de partida e o valor por km para calcular o valor.')
+      return
+    }
+    if (needsSave && !streetOk) {
+      setError('Informe a rua do cliente para salvar a cotação.')
+      return
+    }
+    const message = (freightCents) => adminWhatsappUrl({
+      customerPhone: reservation.customer_phone,
+      businessName: business.name,
+      customerName: reservation.customer_name,
+      petName: reservation.pet_name,
+      serviceName: reservation.service_name,
+      whenLabel: reservation.whenLabel,
+      freightCents,
+    })
+    if (!message(0)) {
+      setError('O telefone deste cliente não é válido para abrir o WhatsApp.')
+      return
+    }
+    // A aba e aberta AQUI, no clique (antes de esperar o servidor), para o navegador nao bloquear.
+    const popup = window.open('about:blank', '_blank')
+    if (popup) { try { popup.opener = null } catch { /* segue sem opener */ } }
+    setBusy(true)
+    try {
+      let freightCents = request?.freight_cents
+      if (needsSave) {
+        const result = await saveTransportQuote({
+          kind,
+          reservationId: reservation.id,
+          address: { ...address, street: address.street.trim() },
+          distanceKm: km,
+          startFeeCents: startFee,
+          kmPriceCents: kmPrice,
+        })
+        freightCents = result.freight_cents
+        onChanged?.()
+        setNotice('Cotação salva. O valor ainda não foi somado ao total.')
+      }
+      const url = message(freightCents)
+      if (popup) popup.location.href = url
+      else setFallbackUrl(url)
+    } catch (err) {
+      if (popup) popup.close()
+      setError(messageFor(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -194,10 +253,13 @@ export default function TransportPanel({ kind, reservation, request, onChanged, 
             )}
           </dl>
         )}
-        {dirty && <p className="hint">Você alterou os dados: salve a cotação antes de enviar o valor ou confirmar.</p>}
+        {dirty && <p className="hint">Você alterou os dados. "Enviar valor pelo WhatsApp" salva a cotação antes de abrir a conversa; para confirmar, salve a cotação.</p>}
 
         {error && <Notice tone="error">{error}</Notice>}
         {notice && <Notice>{notice}</Notice>}
+        {fallbackUrl && (
+          <Notice>O navegador bloqueou a abertura do WhatsApp. <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">Abrir conversa no WhatsApp</a></Notice>
+        )}
 
         {pending ? (
           <div className="transport-confirm" role="group" aria-label="Confirmar ação">
@@ -234,7 +296,9 @@ export default function TransportPanel({ kind, reservation, request, onChanged, 
                 Enviar valor pelo WhatsApp
               </a>
             ) : canEdit && (
-              <button type="button" className="btn btn-quiet" disabled>Enviar valor pelo WhatsApp</button>
+              <button type="button" className="btn btn-quiet" disabled={busy} onClick={sendWhatsapp}>
+                Enviar valor pelo WhatsApp
+              </button>
             )}
             {request?.status === 'quoted' && !dirty && (
               <button type="button" className="btn btn-primary" disabled={busy} onClick={() => setPending('confirm')}>

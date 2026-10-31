@@ -271,6 +271,38 @@ export function createAdminBooking(businessId, optionId, startsAt, form) {
   })
 }
 
+/** Creche por periodos criada pelo painel. */
+export function createAdminPeriodBooking(businessId, { optionId, date, period }, form) {
+  return adminRpc('admin_create_period_booking', {
+    p_business_id: businessId,
+    p_option_id: optionId,
+    p_date: date,
+    p_period: period,
+    p_customer_name: form.customerName,
+    p_customer_phone: form.customerPhone,
+    p_pet_name: form.petName,
+    p_pet_breed: form.petBreed || null,
+    p_notes: form.notes || null,
+  })
+}
+
+/** Hospedagem com entrada e saida criada pelo painel. */
+export function createAdminTimedStay(businessId, { optionId, checkIn, entryTime, checkOut, exitTime }, form) {
+  return adminRpc('admin_create_timed_stay', {
+    p_business_id: businessId,
+    p_option_id: optionId,
+    p_check_in: checkIn,
+    p_entry_time: entryTime,
+    p_check_out: checkOut,
+    p_exit_time: exitTime,
+    p_customer_name: form.customerName,
+    p_customer_phone: form.customerPhone,
+    p_pet_name: form.petName,
+    p_pet_breed: form.petBreed || null,
+    p_notes: form.notes || null,
+  })
+}
+
 export function setAdminStayStatus(stayId, status) {
   return adminRpc('admin_set_stay_status', {
     p_stay_id: stayId,
