@@ -79,6 +79,8 @@ test('mensagem do cliente leva o endereco e NAO leva valor', () => {
   const text = decodeURIComponent(url.split('?text=')[1])
   assert.ok(text.includes('Rua das Flores, 123'))
   assert.ok(text.includes('Código da reserva: AB12CD34'))
+  assert.ok(text.includes(mapsSearchUrl(address)), 'a mensagem do cliente leva o mesmo link do Maps do painel')
+  assert.ok(text.indexOf('Mapa:') > text.indexOf('Rua das Flores, 123'), 'o mapa vem depois do endereco')
   assert.ok(!/R\$/.test(text) && !/\d+,\d{2}/.test(text), 'a mensagem do cliente nao pode ter valor')
   assert.equal(customerWhatsappUrl({ businessPhone: '', serviceName: 'x', address }), null)
 })
