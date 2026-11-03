@@ -23,6 +23,7 @@
 | 14 | `tests/14_category_delete_and_service_reactivation.sql` | Categoria vinculada não pode ser excluída; categoria vazia pode ser excluída por membro; serviço arquivado pode ser reativado preservando a linha | só PASS | ☐ executar após `20261023000002` |
 | 15 | `tests/15_transport_delivery.sql` | Padrões 500/100; flag por serviço; pedido do cliente (endereço obrigatório, reenvio atualiza, travado depois da cotação); frete no banco (6 km = 2900; 6,5 km × 75 = 2450); confirmar/desfazer/cancelar/reabrir; sem escrita direta; reserva cancelada não cota; isolamento; anon só funções públicas | só PASS | ☐ executar após a migration `20261024000001` |
 | 16 | `tests/16_admin_manual_reservations.sql` | Reservas manuais de creche e hospedagem: dados inválidos, serviço de outro tipo, usuário sem vínculo recebe NOT_FOUND, anon sem acesso (fluxo completo é conferido no painel) | só PASS | ☐ executar após a migration `20261025000001` |
+| 17 | `tests/17_size_weight_ranges.sql` | Faixa de peso por porte: completa, só máximo e só mínimo; máximo menor que o mínimo, peso negativo, máximo zero e acima de 999 recusados; `list_public_sizes` devolve as faixas só dos portes ativos; usuário sem vínculo não altera; anon só lê a lista | só PASS | ☐ executar após a migration `20261026000001` |
 
 No DEV, o responsável confirmou que as migrations 06 e 07 foram aplicadas e executou o teste 09. As verificações de catálogo avançaram; a falha atual indica que `get_available_slots` não filtrou o porte desativado. A migration `20261021000008_restore_active_size_slot_filter.sql` restaura esse filtro; aplique-a somente no DEV e rode novamente o teste 09, que verifica também a rejeição da reserva para a opção inativa. O schema `supabase_migrations.schema_migrations` não existe porque o projeto foi atualizado manualmente pelo SQL Editor; isso não informa quais scripts já foram executados. Confira o estado antes de reaplicar migrations. A migration 05 requer a 04; aplique/valide pendências e rode também 01, 04 e 10. As migrations `20261022000001` e `20261022000002` exigem as anteriores até a 08; depois delas rode 12, 11, 04 e 09. As migrations `20261023000001` e `20261023000002` devem ser conferidas/aplicadas nessa ordem; rode 13, 14 e 04 depois da 02. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não reaplique migrations não idempotentes sem conferir o schema.
 
@@ -159,4 +160,10 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Por horário: escolher serviço, porte, data e horário livre cria o agendamento (com anotação interna opcional).
 - [ ] Creche: escolher data e período mostra vagas e valor; período lotado mostra aviso e bloqueia o botão; criar aparece em "Creche por período" na data escolhida.
 - [ ] Hospedagem: escolher data e horário de entrada lista as saídas por data com diárias e valor (sem vaga desabilitado); criar aparece em "Hospedagem"; reservar vários pets do mesmo tutor pelo painel não é bloqueado.
+
+**Faixa de peso por porte (manual no navegador, após a migration 20261026000001):**
+- [ ] Controle → Portes disponíveis: cada porte mostra "Peso a partir de (kg)" e "Até (kg)" e a prévia "O cliente vê: …"; salvar mantém a faixa; vazio apaga; peso inválido ou mínimo maior que o máximo mostram a mensagem.
+- [ ] Faixas que se sobrepõem mostram o aviso (sem bloquear); corrigindo, o aviso some.
+- [ ] Link do cliente: ao escolher o porte aparece a faixa de cada um (ex.: "até 10 kg", "10 a 25 kg", "a partir de 25 kg") e o resumo mostra o porte com a faixa; porte sem faixa não mostra nada.
+- [ ] Salvar qualquer seção do Controle não fecha as seções abertas.
 

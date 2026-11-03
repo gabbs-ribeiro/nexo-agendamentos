@@ -46,3 +46,4 @@ Projetos gratuitos pausam após cerca de uma semana sem atividade. Durante o pil
 Vercel Hobby é para uso pessoal/não comercial. Como o sistema atende um negócio real, confirme nos termos da Vercel se o enquadramento é aceitável antes de publicar; caso contrário, use outro host estático ou plano adequado.
 - A migration `20261024000001_transport_delivery.sql` cria o leva e traz (frete por reserva, com km informado manualmente). Aplique somente em DEV e rode os testes SQL 15 e 04.
 - A migration `20261025000001_admin_manual_reservations.sql` permite criar creche por períodos e hospedagem com entrada/saída pelo painel. Aplique somente em DEV e rode os testes SQL 16 e 04.
+- A migration `20261026000001_size_weight_ranges.sql` adiciona a faixa de peso por porte (editável no Controle e exibida ao cliente). Aplique somente em DEV e rode os testes SQL 17 e 04.
