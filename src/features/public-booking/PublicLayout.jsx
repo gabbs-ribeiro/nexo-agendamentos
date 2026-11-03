@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Outlet, useParams } from 'react-router-dom'
 import {
-  getPublicBusiness, listPublicBookingModels, listPublicServiceCategories, listPublicServices, logoUrl,
+  getPublicBusiness, listPublicBookingModels, listPublicServiceCategories, listPublicServices, listPublicSizes, logoUrl,
 } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { brandOrDefault, readableOn } from '../../lib/format.js'
@@ -23,12 +23,23 @@ export default function PublicLayout() {
   const load = useCallback(async () => {
     setState({ status: 'loading' })
     try {
-      const [business, services, categories, models] = await Promise.all([
+      const [business, services, categories, models, sizes] = await Promise.all([
         getPublicBusiness(slug),
         listPublicServices(slug),
         listPublicServiceCategories(slug),
         listPublicBookingModels(slug),
+        listPublicSizes(slug),
       ])
+      const sizeByCode = new Map(sizes.map((size) => [size.code, size]))
+      // Faixa de peso do porte em cada opcao (informativo para o cliente identificar o porte do pet).
+      const withWeights = (service) => ({
+        ...service,
+        options: service.options.map((option) => ({
+          ...option,
+          weight_min_kg: sizeByCode.get(option.size)?.weight_min_kg ?? null,
+          weight_max_kg: sizeByCode.get(option.size)?.weight_max_kg ?? null,
+        })),
+      })
       const modelByService = new Map(models.map((model) => [model.service_id, model]))
       const applyModel = (service) => {
         const model = modelByService.get(service.service_id)
@@ -41,10 +52,10 @@ export default function PublicLayout() {
           options: service.options.map((option) => ({ ...option, ...prices.get(option.option_id) })),
         }
       }
-      const publicServices = services.map(applyModel)
+      const publicServices = services.map(applyModel).map(withWeights)
       const publicCategories = categories.map((category) => ({
         ...category,
-        services: category.services.map(applyModel),
+        services: category.services.map(applyModel).map(withWeights),
       }))
       setState(business
         ? { status: 'ready', business, services: publicServices, categories: publicCategories }

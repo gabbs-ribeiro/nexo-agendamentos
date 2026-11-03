@@ -30,6 +30,15 @@ export async function listPublicServiceCategories(slug) {
   return (await rpc('list_public_service_categories', { p_slug: slug })) ?? []
 }
 
+/** Faixas de peso dos portes ativos (opcional: sem a migration devolve lista vazia). */
+export async function listPublicSizes(slug) {
+  try {
+    return (await rpc('list_public_sizes', { p_slug: slug })) ?? []
+  } catch {
+    return []
+  }
+}
+
 export async function listPublicBookingModels(slug) {
   return (await rpc('get_public_booking_models', { p_slug: slug })) ?? []
 }
@@ -396,6 +405,13 @@ export async function getBusinessControl(businessId) {
   return data
 }
 
+async function fetchCatalogSizes(businessId) {
+  const base = 'business_id, code, name, sort_order, is_active'
+  const run = (columns) => supabase.from('business_sizes').select(columns).eq('business_id', businessId).order('sort_order').order('name')
+  const result = await run(`${base}, weight_min_kg, weight_max_kg`)
+  return result.error?.code === UNDEFINED_COLUMN ? run(base) : result
+}
+
 async function fetchCatalogServices(businessId) {
   const base = 'id, business_id, category_id, name, description, booking_mode, is_active, archived_at'
   const run = (columns) => supabase.from('services').select(columns).eq('business_id', businessId).order('name')
@@ -405,11 +421,7 @@ async function fetchCatalogServices(businessId) {
 
 export async function listBusinessCatalog(businessId) {
   const [sizesResult, categoriesResult, servicesResult, optionsResult, settingsResult] = await Promise.all([
-    supabase.from('business_sizes')
-      .select('business_id, code, name, sort_order, is_active')
-      .eq('business_id', businessId)
-      .order('sort_order')
-      .order('name'),
+    fetchCatalogSizes(businessId),
     supabase.from('service_categories')
       .select('id, business_id, name, description, sort_order')
       .eq('business_id', businessId)
@@ -476,15 +488,22 @@ export async function removeBusinessLogo(path) {
   throwIfApiError(error, 'business logo removal')
 }
 
+// Faixa de peso (kg): so vai para o banco quando a tela conhece a coluna (migration aplicada).
+function weightColumns(size) {
+  return size.weightMinKg === undefined ? {}
+    : { weight_min_kg: size.weightMinKg, weight_max_kg: size.weightMaxKg }
+}
+
 export async function saveBusinessSize(businessId, size) {
   const query = supabase.from('business_sizes')
   const result = size.code
-    ? await query.update({ name: size.name }).eq('business_id', businessId).eq('code', size.code).select('code').maybeSingle()
+    ? await query.update({ name: size.name, ...weightColumns(size) }).eq('business_id', businessId).eq('code', size.code).select('code').maybeSingle()
     : await query.insert({
       business_id: businessId,
       code: size.newCode,
       name: size.name,
       sort_order: size.sort_order,
+      ...weightColumns(size),
     }).select('code').single()
   throwIfApiError(result.error, 'business size save')
   if (!result.data) throw new ApiError('AUTH_ACCESS_DENIED')

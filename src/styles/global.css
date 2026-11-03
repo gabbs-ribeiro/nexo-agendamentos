@@ -1145,3 +1145,11 @@ button.stay-exit-card:focus-visible { outline: 3px solid var(--brand); outline-o
 .manual-period span { color: var(--muted); font-size: .82rem; }
 .manual-period[aria-pressed='true'] { border-color: var(--brand); background: #ffe0ce; }
 .manual-quote { margin: 0; padding: 10px 12px; border-radius: 12px; background: #ffe0ce; }
+
+/* Faixa de peso dos portes */
+.size-weight-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.size-weight-preview { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: .88rem; }
+.size-weight-warning { color: #7a2a12; font-weight: 700; }
+.add-size-form .size-weight-fields { grid-column: 1 / -1; }
+.public-size-option .size-weight { color: #6b3a14; font-weight: 800; }
+@media (max-width: 420px) { .size-weight-fields { grid-template-columns: minmax(0, 1fr); } }

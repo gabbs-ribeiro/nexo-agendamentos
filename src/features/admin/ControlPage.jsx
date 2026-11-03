@@ -3,6 +3,7 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx'
 import ControlBar, { IconClock, IconList, IconProfile, IconSizes, IconTag } from '../../components/ControlBar.jsx'
 import Notice from '../../components/Notice.jsx'
 import { calcFreight, centsToInput, parseMoneyToCents } from '../transport/transportCalc.js'
+import { findWeightOverlaps, parseWeightInput, weightRangeError, weightRangeLabel } from '../../lib/weight.js'
 import { setCachedTransportDefaults } from '../transport/useTransport.js'
 import {
   archiveService,
@@ -89,6 +90,8 @@ export default function ControlPage() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [sizeDrafts, setSizeDrafts] = useState({})
   const [newSize, setNewSize] = useState('')
+  const [newWeight, setNewWeight] = useState({ min: '', max: '' })
+  const [weightDrafts, setWeightDrafts] = useState({})
   const [sizeError, setSizeError] = useState('')
   const [savingSize, setSavingSize] = useState(false)
   const [draft, setDraft] = useState(null)
@@ -106,7 +109,8 @@ export default function ControlPage() {
   const categoryDialogRef = useRef(null)
 
   const load = useCallback(async () => {
-    setState({ status: 'loading' })
+    // Recarregar depois de salvar nao fecha as secoes abertas: so mostra "carregando" na primeira vez.
+    setState((current) => (current.status === 'ready' ? current : { status: 'loading' }))
     try {
       const [businessProfile, catalog] = await Promise.all([
         getBusinessControl(business.id),
@@ -318,12 +322,35 @@ export default function ControlPage() {
     }
   }
 
+  // state.sizes so existe depois do carregamento
+  const loadedSizes = state.sizes ?? []
+  const weightSupported = loadedSizes.some((size) => 'weight_min_kg' in size)
+  const weightOverlaps = weightSupported ? findWeightOverlaps(loadedSizes) : []
+  const weightText = (value) => (value == null ? '' : String(value).replace('.', ','))
+  const weightOf = (size) => weightDrafts[size.code] ?? { min: weightText(size.weight_min_kg), max: weightText(size.weight_max_kg) }
+
+  // Le e valida a faixa digitada; devolve { weights } para salvar ou { error }.
+  function readWeights(minText, maxText) {
+    if (!weightSupported) return { weights: {} }
+    const min = parseWeightInput(minText)
+    const max = parseWeightInput(maxText)
+    if (!min.ok || !max.ok) return { error: 'Informe os pesos em kg com números (ex.: 7,5), de 0 a 999.' }
+    const rangeError = weightRangeError(min.value, max.value)
+    if (rangeError) return { error: rangeError }
+    return { weights: { weightMinKg: min.value, weightMaxKg: max.value } }
+  }
+
   async function addSize(event) {
     event.preventDefault()
     const name = newSize.trim()
     if (savingSize) return
     if (!name || name.length > 40) {
       setSizeError('Informe um nome de porte com até 40 caracteres.')
+      return
+    }
+    const read = readWeights(newWeight.min, newWeight.max)
+    if (read.error) {
+      setSizeError(read.error)
       return
     }
     setSavingSize(true)
@@ -333,8 +360,10 @@ export default function ControlPage() {
         name,
         newCode: sizeCodeForName(name),
         sort_order: state.sizes.length,
+        ...read.weights,
       })
       setNewSize('')
+      setNewWeight({ min: '', max: '' })
       await load()
     } catch (error) {
       setSizeError(messageFor(error))
@@ -350,10 +379,17 @@ export default function ControlPage() {
       setSizeError('Informe um nome de porte com até 40 caracteres.')
       return
     }
+    const draft = weightOf(size)
+    const read = readWeights(draft.min, draft.max)
+    if (read.error) {
+      setSizeError(read.error)
+      return
+    }
     setSavingSize(true)
     setSizeError('')
     try {
-      await saveBusinessSize(business.id, { code: size.code, name })
+      await saveBusinessSize(business.id, { code: size.code, name, ...read.weights })
+      setWeightDrafts(({ [size.code]: _saved, ...rest }) => rest)
       await load()
     } catch (error) {
       setSizeError(messageFor(error))
@@ -593,7 +629,7 @@ export default function ControlPage() {
       </ControlBar>
 
       <ControlBar icon={<IconSizes />} tone="sand" title="Portes disponíveis" summary={countLabel(activeSizeCount, 'porte ativo', 'portes ativos')}>
-        <p className="muted">Os portes são compartilhados entre os serviços. Ao renomear um porte, o histórico já salvo permanece igual.</p>
+        <p className="muted">Os portes são compartilhados entre os serviços. Ao renomear um porte, o histórico já salvo permanece igual. Informe a faixa de peso de cada porte (por exemplo, de 5 a 10 kg) para o cliente identificar o porte do cachorro dele ao agendar; preencha só o "até" para "até 10 kg" ou só o "a partir de" para "a partir de 25 kg".</p>
         <div className="size-list">
           {state.sizes.map((size) => (
             <div className="size-row" key={size.code}>
@@ -608,15 +644,58 @@ export default function ControlPage() {
                 onClick={() => { setConfirmError(''); setConfirmAction({ kind: 'size', ...size }) }}>
                 {size.is_active ? 'Desativar' : 'Reativar'}
               </button>
+              {weightSupported && (() => {
+                const draft = weightOf(size)
+                const min = parseWeightInput(draft.min)
+                const max = parseWeightInput(draft.max)
+                const preview = min.ok && max.ok && !weightRangeError(min.value, max.value)
+                  ? weightRangeLabel(min.value, max.value) : ''
+                return (
+                  <div className="size-weight-fields">
+                    <div className="field">
+                      <label htmlFor={`weight-min-${size.code}`}>Peso a partir de (kg)</label>
+                      <input id={`weight-min-${size.code}`} type="text" inputMode="decimal" placeholder="Ex.: 5" autoComplete="off"
+                        value={draft.min} disabled={!size.is_active}
+                        onChange={(event) => setWeightDrafts((current) => ({ ...current, [size.code]: { ...weightOf(size), min: event.target.value } }))} />
+                    </div>
+                    <div className="field">
+                      <label htmlFor={`weight-max-${size.code}`}>Até (kg)</label>
+                      <input id={`weight-max-${size.code}`} type="text" inputMode="decimal" placeholder="Ex.: 10" autoComplete="off"
+                        value={draft.max} disabled={!size.is_active}
+                        onChange={(event) => setWeightDrafts((current) => ({ ...current, [size.code]: { ...weightOf(size), max: event.target.value } }))} />
+                    </div>
+                    <p className="size-weight-preview">{preview ? `O cliente vê: ${preview}` : 'Sem faixa de peso: nada aparece para o cliente.'}</p>
+                  </div>
+                )
+              })()}
             </div>
           ))}
         </div>
+        {weightOverlaps.length > 0 && (
+          <p className="hint size-weight-warning" role="status">
+            Atenção: as faixas de peso se sobrepõem ({weightOverlaps.map(([a, b]) => `${a} e ${b}`).join('; ')}). O cliente pode ficar em dúvida sobre qual porte escolher.
+          </p>
+        )}
         <form className="add-size-form" onSubmit={addSize}>
           <div className="field">
             <label htmlFor="new-size">Adicionar porte</label>
             <input id="new-size" type="text" maxLength={40} value={newSize}
               onChange={(event) => setNewSize(event.target.value)} placeholder="Ex.: Gigante" required />
           </div>
+          {weightSupported && (
+            <div className="size-weight-fields">
+              <div className="field">
+                <label htmlFor="new-size-min">Peso a partir de (kg, opcional)</label>
+                <input id="new-size-min" type="text" inputMode="decimal" autoComplete="off" value={newWeight.min}
+                  onChange={(event) => setNewWeight((current) => ({ ...current, min: event.target.value }))} />
+              </div>
+              <div className="field">
+                <label htmlFor="new-size-max">Até (kg, opcional)</label>
+                <input id="new-size-max" type="text" inputMode="decimal" autoComplete="off" value={newWeight.max}
+                  onChange={(event) => setNewWeight((current) => ({ ...current, max: event.target.value }))} />
+              </div>
+            </div>
+          )}
           <button className="btn btn-quiet" type="submit" disabled={savingSize}>{savingSize ? 'Adicionando…' : 'Adicionar porte'}</button>
         </form>
         <ErrorNotice>{sizeError}</ErrorNotice>

@@ -1,4 +1,5 @@
 import { formatBRL, formatDuration } from '../../lib/format.js'
+import { weightRangeLabel } from '../../lib/weight.js'
 import { displayedPrice, serviceStartingPrice } from './serviceSelection.js'
 
 export default function ServiceCard({ service, selectedOptionId, onSelectOption }) {
@@ -33,6 +34,9 @@ export default function ServiceCard({ service, selectedOptionId, onSelectOption 
               <span className="size-dog" aria-hidden="true" style={{ fontSize: `${Math.min(1.05 + index * 0.22, 1.7)}rem` }}>🐶</span>
               <span className="size-main">
                 <span className="public-size-label">Porte {option.size_label}</span>
+                {weightRangeLabel(option.weight_min_kg, option.weight_max_kg) && (
+                  <small className="size-weight">{weightRangeLabel(option.weight_min_kg, option.weight_max_kg)}</small>
+                )}
                 <small>{periods ? 'por período' : daily ? 'por diária' : formatDuration(option.duration_minutes)}</small>
               </span>
               <strong>{formatBRL(displayedPrice(service, option))}</strong>
@@ -46,7 +50,7 @@ export default function ServiceCard({ service, selectedOptionId, onSelectOption 
           <span className="current-main">
             <span className="current-check" aria-hidden="true">✓</span>
             <span className="sr-only">Selecionado: </span>
-            Porte {selected.size_label} · {periods ? 'por período' : daily ? 'por diária' : formatDuration(selected.duration_minutes)}
+            Porte {selected.size_label}{weightRangeLabel(selected.weight_min_kg, selected.weight_max_kg) ? ` (${weightRangeLabel(selected.weight_min_kg, selected.weight_max_kg)})` : ''} · {periods ? 'por período' : daily ? 'por diária' : formatDuration(selected.duration_minutes)}
           </span>
           <strong>{formatBRL(displayedPrice(service, selected))}</strong>
         </p>
