@@ -1,5 +1,5 @@
 -- TESTE 19 — janela do cliente (60 dias) e painel sem limite de data.
--- Rodar SOMENTE em DEV apos a migration 20261028000001_booking_horizon_and_admin_no_limits.sql.
+-- Rodar SOMENTE em DEV apos as migrations 20261028000001 e 20261105000001.
 -- Transacao com ROLLBACK; esperado: PASS e nenhuma excecao.
 begin;
 
@@ -114,9 +114,17 @@ begin
   assert (v_result->>'ok')::boolean and jsonb_array_length(v_result->'options') > 0, 'painel deveria ver saidas a 70 dias: ' || v_result::text;
   v_out_date := v_result->'options'->0->>'check_out';
   v_out_time := v_result->'options'->0->>'check_out_time';
+  assert (v_result->'options'->0->>'duration_hours')::numeric = 12
+     and (v_result->'options'->0->>'charge_units')::numeric = 0.5
+     and (v_result->'options'->0->>'total_price_cents')::integer = 2500,
+    'a primeira opcao de hospedagem deveria cobrar meia diaria em 12 horas: ' || v_result::text;
   v_result := public.admin_create_timed_stay(c_biz, v_stay, v_d70, '10:00', v_out_date::date, v_out_time,
     'Carla Souza', '41999990066', 'Thor', null, null);
   assert coalesce((v_result->>'ok')::boolean, false), 'hospedagem a 70 dias falhou: ' || v_result::text;
+  assert (v_result->>'duration_minutes')::integer = 720
+     and (v_result->>'charge_units')::numeric = 0.5
+     and (v_result->>'total_price_cents')::integer = 2500,
+    'hospedagem de 12 horas deveria ser criada por meia diaria: ' || v_result::text;
   select count(*) into v_count from public.stay_bookings
    where business_id = c_biz and created_by = 'admin' and consent_at is null and check_in = v_d70;
   assert v_count = 1, 'hospedagem do painel deveria ter origem admin sem consentimento';

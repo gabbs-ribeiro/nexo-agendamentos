@@ -1,5 +1,5 @@
 -- TESTE 13 — períodos de creche, preços por modalidade e hospedagem por horário.
--- Rodar SOMENTE em DEV após as migrations 20261023000001 e 20261023000002.
+-- Rodar SOMENTE em DEV após as migrations 20261023000001, 20261023000002 e 20261105000001.
 -- Transação com ROLLBACK; esperado: PASS e nenhuma exceção.
 begin;
 
@@ -169,6 +169,19 @@ begin
   select count(*) into v_count from public.stay_bookings
    where business_id = c_biz and check_in_at is not null;
   assert v_count = 4, 'hospedagens por horário devem preservar os snapshots: ' || v_count;
+
+  v_result := public.create_public_timed_stay(
+    'loja-modelos', v_stay_option, v_day + 2, '08:00', v_day + 2, '20:00',
+    'Tutor meia', '41999997006', 'Pet meia', null, null, true, gen_random_uuid());
+  assert coalesce((v_result->>'ok')::boolean, false)
+     and (v_result->>'duration_minutes')::integer = 720
+     and (v_result->>'charge_units')::numeric = 0.5
+     and (v_result->>'total_price_cents')::integer = 5000,
+    'hospedagem pública de 12 horas deve ser criada por meia diária: ' || v_result::text;
+
+  select count(*) into v_count from public.stay_bookings
+   where business_id = c_biz and check_in_at is not null;
+  assert v_count = 5, 'hospedagem de meia diária deve preservar o snapshot: ' || v_count;
   raise notice 'PASS: modelos por período, janelas de horário, tarifas e estadias temporizadas';
 end;
 $$;
