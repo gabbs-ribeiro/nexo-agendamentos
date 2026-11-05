@@ -99,6 +99,55 @@ export async function createPublicStay({ slug, optionId, checkIn, checkOut, form
   return data
 }
 
+// ---------------------------------------------------------------------------
+// Versoes do PAINEL: sem janela de datas (agendar meses a frente). Se a funcao ainda nao existe no
+// banco (migration nao aplicada), cai na versao publica, que respeita a janela do cliente.
+// ---------------------------------------------------------------------------
+const FUNCTION_NOT_FOUND = 'PGRST202'
+
+async function adminRpcOrPublic(adminFn, adminArgs, publicFn, publicArgs) {
+  let res
+  try {
+    res = await supabase.rpc(adminFn, adminArgs)
+  } catch {
+    throw new ApiError('NETWORK')
+  }
+  if (res.error?.code === FUNCTION_NOT_FOUND) return rpc(publicFn, publicArgs)
+  if (res.error) {
+    console.error(`[rpc ${adminFn}]`, res.error.code)
+    throw new ApiError('NETWORK')
+  }
+  return res.data
+}
+
+/** Horarios livres para o painel. business: { id, slug }. */
+export async function getAdminAvailableSlots(business, optionId, date) {
+  return (await adminRpcOrPublic(
+    'admin_get_available_slots', { p_business_id: business.id, p_option_id: optionId, p_date: date },
+    'get_available_slots', { p_slug: business.slug, p_option_id: optionId, p_date: date },
+  )) ?? []
+}
+
+/** Cotacao da creche para o painel. */
+export async function getAdminPeriodQuote(business, optionId, date, period) {
+  const data = await adminRpcOrPublic(
+    'admin_get_period_quote', { p_business_id: business.id, p_option_id: optionId, p_date: date, p_period: period },
+    'get_period_quote', { p_slug: business.slug, p_option_id: optionId, p_date: date, p_period: period },
+  )
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
+/** Opcoes de saida da hospedagem para o painel. */
+export async function getAdminTimedStayOptions(business, optionId, checkIn, entryTime) {
+  const data = await adminRpcOrPublic(
+    'admin_get_timed_stay_options', { p_business_id: business.id, p_option_id: optionId, p_check_in: checkIn, p_entry_time: entryTime },
+    'get_timed_stay_options', { p_slug: business.slug, p_option_id: optionId, p_check_in: checkIn, p_entry_time: entryTime },
+  )
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
+  return data
+}
+
 export async function getPeriodQuote(slug, optionId, date, period) {
   const data = await rpc('get_period_quote', {
     p_slug: slug,

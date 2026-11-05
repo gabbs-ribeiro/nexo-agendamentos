@@ -24,6 +24,8 @@ allowed_auth(fn) as (values
   ('admin_create_time_block'), ('admin_update_booking_internal_notes'),
   ('admin_replace_business_hours'), ('admin_delete_service_category'),
   ('get_stay_quote'), ('create_public_stay'), ('admin_set_stay_status'),
+  ('admin_get_available_slots'), ('admin_get_period_quote'), ('admin_get_timed_stay_options'),
+  ('admin_create_period_booking'), ('admin_create_timed_stay'),
   ('get_transport_state'), ('request_transport'), ('admin_save_transport_quote'), ('admin_set_transport_status'),
   ('get_public_booking_models'), ('get_period_quote'), ('create_public_period_booking'),
   ('get_timed_stay_options'), ('create_public_timed_stay'),

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Notice from '../../components/Notice.jsx'
 import {
-  createAdminBooking, createAdminPeriodBooking, createAdminTimedStay, getAvailableSlots, getPeriodQuote,
-  getTimedStayOptions, listPublicBookingModels, listPublicServiceCategories, updateAdminBookingInternalNotes,
+  createAdminBooking, createAdminPeriodBooking, createAdminTimedStay, getAdminAvailableSlots, getAdminPeriodQuote,
+  getAdminTimedStayOptions, listPublicBookingModels, listPublicServiceCategories, updateAdminBookingInternalNotes,
 } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { formatBRL, formatLongDate, isValidPhone, maskPhone } from '../../lib/format.js'
@@ -132,11 +132,11 @@ export default function ManualBookingDialog({ open, business, initialDate, onCan
     let active = true
     setSlotsState({ status: 'loading', slots: [] })
     setStartsAt('')
-    getAvailableSlots(business.slug, optionId, date)
+    getAdminAvailableSlots(business, optionId, date)
       .then((slots) => { if (active) setSlotsState({ status: 'ready', slots }) })
       .catch((err) => { if (active) setSlotsState({ status: 'error', slots: [], message: messageFor(err) }) })
     return () => { active = false }
-  }, [open, business.slug, mode, optionId, date])
+  }, [open, business.id, business.slug, mode, optionId, date])
 
   // Por periodos: valor e vagas do periodo escolhido
   useEffect(() => {
@@ -146,11 +146,11 @@ export default function ManualBookingDialog({ open, business, initialDate, onCan
     }
     let active = true
     setQuoteState({ status: 'loading' })
-    getPeriodQuote(business.slug, optionId, date, period)
+    getAdminPeriodQuote(business, optionId, date, period)
       .then((data) => { if (active) setQuoteState({ status: 'ready', data }) })
       .catch((err) => { if (active) setQuoteState({ status: 'error', message: messageFor(err) }) })
     return () => { active = false }
-  }, [open, business.slug, mode, optionId, date, period])
+  }, [open, business.id, business.slug, mode, optionId, date, period])
 
   // Entrada e saida: opcoes de saida a partir da entrada
   useEffect(() => {
@@ -162,11 +162,11 @@ export default function ManualBookingDialog({ open, business, initialDate, onCan
     let active = true
     setStayState({ status: 'loading' })
     setExitKey('')
-    getTimedStayOptions(business.slug, optionId, date, entryTime)
+    getAdminTimedStayOptions(business, optionId, date, entryTime)
       .then((data) => { if (active) setStayState({ status: 'ready', data }) })
       .catch((err) => { if (active) setStayState({ status: 'error', message: messageFor(err) }) })
     return () => { active = false }
-  }, [open, business.slug, mode, optionId, date, entryTime])
+  }, [open, business.id, business.slug, mode, optionId, date, entryTime])
 
   function updateField(name, value) {
     setForm((current) => ({ ...current, [name]: value }))
@@ -325,6 +325,7 @@ export default function ManualBookingDialog({ open, business, initialDate, onCan
                 <label htmlFor="manual-date">{dateLabel}</label>
                 <input id="manual-date" type="date" required value={date}
                   onChange={(event) => { setDate(event.target.value); setExitKey('') }} />
+                <span className="hint">Sem limite de data: você pode agendar meses à frente.</span>
               </div>
 
               {mode === 'hourly' && (
