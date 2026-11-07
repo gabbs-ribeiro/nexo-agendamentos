@@ -1,0 +1,173 @@
+import { useCallback, useEffect, useState } from 'react'
+import Notice from '../../components/Notice.jsx'
+import { listBusinessHours, replaceBusinessHours } from '../../lib/api.js'
+import { messageFor } from '../../lib/errors.js'
+import { businessHoursDraft, businessHoursPayload, WEEKDAYS } from './businessHours.js'
+
+// "08:00–12:00 · 14:00–18:00" para o resumo do dia (so faixas completas).
+function daySummary(intervals) {
+  const complete = intervals.filter((interval) => interval.opens_at && interval.closes_at)
+  return complete.length ? complete.map((interval) => `${interval.opens_at}–${interval.closes_at}`).join(' · ') : 'Defina os horários'
+}
+
+export default function BusinessHoursSection({ businessId, bare = false }) {
+  const [draft, setDraft] = useState(null)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const rows = await listBusinessHours(businessId)
+      setDraft(businessHoursDraft(rows))
+    } catch (loadError) {
+      setError(messageFor(loadError))
+    } finally {
+      setLoading(false)
+    }
+  }, [businessId])
+
+  useEffect(() => { load() }, [load])
+
+  function updateInterval(day, index, field, value) {
+    setDraft((current) => ({
+      ...current,
+      [day]: current[day].map((interval, intervalIndex) => (
+        intervalIndex === index ? { ...interval, [field]: value } : interval
+      )),
+    }))
+  }
+
+  function addInterval(day) {
+    setDraft((current) => ({
+      ...current,
+      [day]: [...current[day], { opens_at: '', closes_at: '' }],
+    }))
+    setError('')
+    setNotice('')
+  }
+
+  function removeInterval(day, index) {
+    setDraft((current) => ({
+      ...current,
+      [day]: current[day].filter((_, intervalIndex) => intervalIndex !== index),
+    }))
+    setError('')
+    setNotice('')
+  }
+
+  // Copia as faixas de um dia para todos os outros (so no formulario; vale ao salvar).
+  function copyDay(day, label) {
+    setDraft((current) => Object.fromEntries(Object.keys(current).map((key) => [
+      key,
+      Number(key) === day
+        ? current[key]
+        : current[day].map(({ opens_at, closes_at }) => ({ opens_at, closes_at })),
+    ])))
+    setError('')
+    setNotice(`Horários de ${label} copiados para os outros dias. Revise e salve.`)
+  }
+
+  async function save(event) {
+    event.preventDefault()
+    if (saving || !draft) return
+    setSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      let hours
+      try {
+        hours = businessHoursPayload(draft)
+      } catch {
+        setError('Confira os horários: o fechamento deve ser posterior à abertura e as faixas do mesmo dia não podem se sobrepor.')
+        return
+      }
+      await replaceBusinessHours(businessId, hours)
+      setNotice('Horários de funcionamento atualizados.')
+      await load()
+    } catch (saveError) {
+      setError(messageFor(saveError))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const Wrapper = bare ? 'div' : 'section'
+  const wrapperProps = bare ? { className: 'stack' } : { className: 'control-card stack', 'aria-labelledby': 'business-hours-title' }
+
+  return (
+    <Wrapper {...wrapperProps}>
+      {!bare && <div className="control-section-heading">
+        <div>
+          <span className="eyebrow">Disponibilidade do estabelecimento</span>
+          <h2 id="business-hours-title">Horário de funcionamento</h2>
+        </div>
+        <span className="control-icon" aria-hidden="true">◷</span>
+      </div>}
+      <p className="muted">Defina quando o estabelecimento recebe reservas. Em cada dia você pode ter mais de um período, como manhã e tarde. Dias sem período ficam fechados. Os horários seguem o fuso do estabelecimento.</p>
+      {loading && <p className="status" role="status">Carregando horários…</p>}
+      {error && <Notice tone="error">{error}</Notice>}
+      {notice && <Notice>{notice}</Notice>}
+      {!loading && draft && <form className="hours-form" onSubmit={save}>
+        <div className="hours-list">
+          {WEEKDAYS.map(({ value, label }) => {
+            const intervals = draft[value]
+            const open = intervals.length > 0
+            return (
+              <section className="hours-day" data-open={open} key={value} aria-labelledby={`hours-${value}-title`}>
+                <header className="hours-day-head">
+                  <div className="hours-day-title">
+                    <h3 id={`hours-${value}-title`}>{label}</h3>
+                    <p className="hours-summary">{open ? daySummary(intervals) : 'Sem expediente neste dia'}</p>
+                  </div>
+                  <span className="hours-pill" data-open={open}>{open ? 'Aberto' : 'Fechado'}</span>
+                </header>
+                {open && (
+                  <div className="hours-intervals">
+                    {intervals.map((interval, index) => (
+                      <div className="hours-interval" key={`${value}-${interval.id ?? index}`}>
+                        <div className="hours-time">
+                          <label htmlFor={`hours-${value}-${index}-open`}>Abre</label>
+                          <input id={`hours-${value}-${index}-open`} type="time" step="60" required
+                            value={interval.opens_at}
+                            onChange={(event) => updateInterval(value, index, 'opens_at', event.target.value)} />
+                        </div>
+                        <span className="hours-sep" aria-hidden="true">até</span>
+                        <div className="hours-time">
+                          <label htmlFor={`hours-${value}-${index}-close`}>Fecha</label>
+                          <input id={`hours-${value}-${index}-close`} type="time" step="60" required
+                            value={interval.closes_at}
+                            onChange={(event) => updateInterval(value, index, 'closes_at', event.target.value)} />
+                        </div>
+                        <button className="btn-text hours-remove" type="button"
+                          aria-label={`Remover período ${index + 1} de ${label}`}
+                          onClick={() => removeInterval(value, index)}>Remover</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="hours-actions">
+                  <button className="btn btn-quiet hours-add" type="button" onClick={() => addInterval(value)}>
+                    {open ? '+ Adicionar período' : 'Abrir neste dia'}
+                  </button>
+                  {open && (
+                    <button className="btn-text hours-copy" type="button" onClick={() => copyDay(value, label)}>
+                      Copiar para os outros dias
+                    </button>
+                  )}
+                </div>
+              </section>
+            )
+          })}
+        </div>
+        <button className="btn btn-primary" type="submit" disabled={saving}>
+          {saving ? 'Salvando horários…' : 'Salvar horário de funcionamento'}
+        </button>
+      </form>}
+      {!loading && !draft && <button className="btn btn-quiet" type="button" onClick={load}>Tentar novamente</button>}
+    </Wrapper>
+  )
+}
