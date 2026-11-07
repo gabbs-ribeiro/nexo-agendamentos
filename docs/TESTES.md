@@ -25,7 +25,6 @@
 | 16 | `tests/16_admin_manual_reservations.sql` | Reservas manuais de creche e hospedagem: dados inválidos, serviço de outro tipo, usuário sem vínculo recebe NOT_FOUND, anon sem acesso (fluxo completo é conferido no painel) | só PASS | ☐ executar após a migration `20261025000001` |
 | 17 | `tests/17_size_weight_ranges.sql` | Faixa de peso por porte: completa, só máximo e só mínimo; máximo menor que o mínimo, peso negativo, máximo zero e acima de 999 recusados; `list_public_sizes` devolve as faixas só dos portes ativos; usuário sem vínculo não altera; anon só lê a lista | só PASS | ☐ executar após a migration `20261026000001` |
 | 19 | `tests/19_booking_horizon_admin_no_limits.sql` | Janela padrão de 60 dias; cliente vê horários, cotação e saídas até 60 dias e não além; painel lista, cota e cria horário, creche e hospedagem a 70 dias; hospedagem de 12h é criada por meia diária; passado continua fora; capacidade da creche vale no painel; reservas do painel ficam `admin` sem consentimento; usuário sem vínculo e anon sem acesso | só PASS | ⚠️ responsável relata aplicação da `20261028000001`; teste falhou ao criar hospedagem de 12h. Aplicar `20261105000001` e repetir 19 e 04 |
-| 20 | `tests/20_find_reservations_by_code.sql` | Busca por código: exato, minúsculas com traço, com espaços; reserva cancelada continua achada; inexistente devolve lista vazia; curto e inválido recusados; usuário de outro negócio recebe NOT_FOUND; anon sem acesso | só PASS | ☐ executar após a migration `20261106000001` |
 
 No DEV, o responsável confirmou que as migrations 06 e 07 foram aplicadas e executou o teste 09. As verificações de catálogo avançaram; a falha atual indica que `get_available_slots` não filtrou o porte desativado. A migration `20261021000008_restore_active_size_slot_filter.sql` restaura esse filtro; aplique-a somente no DEV e rode novamente o teste 09, que verifica também a rejeição da reserva para a opção inativa. O schema `supabase_migrations.schema_migrations` não existe porque o projeto foi atualizado manualmente pelo SQL Editor; isso não informa quais scripts já foram executados. Confira o estado antes de reaplicar migrations. A migration 05 requer a 04; aplique/valide pendências e rode também 01, 04 e 10. As migrations `20261022000001` e `20261022000002` exigem as anteriores até a 08; depois delas rode 12, 11, 04 e 09. As migrations `20261023000001` e `20261023000002` devem ser conferidas/aplicadas nessa ordem; rode 13, 14 e 04 depois da 02. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não reaplique migrations não idempotentes sem conferir o schema.
 
@@ -46,12 +45,23 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 - [ ] Bucket `business-logos`: público, 1 MB, PNG/JPEG/WEBP; envio fora da pasta do próprio negócio falha.
 - [ ] Realtime **não** habilitado em `bookings`.
 - [ ] Mensagens de erro do front não exibem texto bruto do banco.
+- [ ] Push: migration `20261107000001_browser_push_notifications.sql` aplicada somente após validar o estado do DEV; teste `supabase/tests/20_browser_push_notifications.sql` passa.
+- [ ] Push: Vercel tem `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_WEBHOOK_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` como variáveis **somente de servidor**; `VITE_VAPID_PUBLIC_KEY` contém apenas a chave pública.
+- [ ] Push: três Database Webhooks Supabase (INSERT em `bookings`, `daycare_bookings` e `stay_bookings`) chamam `/api/booking-created` com `Authorization: Bearer <SUPABASE_WEBHOOK_SECRET>`.
+- [ ] Push: ativar no painel grava a inscrição apenas para o admin e negócio autenticados; novos agendamentos disparam aviso com o painel fechado; clicar abre `/admin`; desativar remove a inscrição.
+
+### Configuração do push (manual)
+1. Gere um par de chaves VAPID localmente com `npx web-push generate-vapid-keys`. Não salve a chave privada no repositório.
+2. Gere um segredo aleatório para o webhook, por exemplo com `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+3. Configure na Vercel: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_WEBHOOK_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` (por exemplo `mailto:contato@exemplo.com`). Configure também `VITE_VAPID_PUBLIC_KEY` com a mesma chave pública `VAPID_PUBLIC_KEY`; nunca use prefixo `VITE_` para segredo ou chave privilegiada. Faça novo deploy após salvar as variáveis.
+4. Após aprovar e validar a migration no DEV, crie no Supabase três Database Webhooks para `public.bookings`, `public.daycare_bookings` e `public.stay_bookings`, somente no evento `INSERT`, URL `https://<dominio-vercel>/api/booking-created` e header `Authorization: Bearer <SUPABASE_WEBHOOK_SECRET>`.
+5. No painel, abra Controle → Notificações do navegador e permita o envio. Teste com cada tipo de agendamento com o painel fechado. Push no iPhone/iPad requer iOS 16.4+ e o webapp adicionado à tela inicial; o usuário deve permitir notificações no navegador.
 
 ## Ainda não testado (fica para o front/piloto)
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 57 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente, modelos de agendamento e intervalos de horário. Última execução: `# pass 57`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 80 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente, modelos de agendamento, intervalos de horário, decodificação da chave pública VAPID e rejeição de método/segredo incorretos no webhook. Última execução: `# pass 80`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -175,10 +185,3 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Link do cliente: o calendário de agendamento (horário, hospedagem e creche) vai até 60 dias à frente e não permite escolher depois disso.
 - [ ] Painel → Calendário → "Adicionar agendamento": numa data a 70+ dias aparecem horários livres (por horário), vagas e valor (creche) e as saídas (hospedagem); criar funciona nos três tipos e aparece no calendário da data.
 - [ ] No painel, datas no passado continuam sem horários; creche lotada e hospedagem sem vaga continuam bloqueadas.
-
-**Cartão com raça e porte, lista de agendamentos marcados e busca por código (manual no navegador; migration 20261106000001 para a busca completa):**
-- [ ] Calendário/Início: o cartão do agendamento mostra a raça (quando informada), "Porte ..." em destaque e o código ("Cód. ...").
-- [ ] Calendário, fim da página: "Todos os agendamentos marcados" lista, por tipo (horário, hospedagem, creche) e por data, as reservas pendentes de hoje em diante; "Ver no calendário" (cartão ou título da data) leva o calendário para aquele dia.
-- [ ] Buscar pelo código que o cliente recebeu na confirmação encontra a reserva (também passada ou cancelada); digitar só o começo (4+ caracteres) funciona; código inexistente mostra "Nenhum agendamento encontrado"; mais de um resultado mostra o aviso.
-- [ ] Criar um agendamento manual atualiza a lista; sem rolagem horizontal em 320 px.
-
