@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { formatBRL, formatInstant } from '../../lib/format.js'
+import { formatBRL, formatInstant, shortCode } from '../../lib/format.js'
 import TransportBadge from '../transport/TransportBadge.jsx'
 import { totalWithTransport } from '../transport/transportCalc.js'
 import { useTransportRequests } from '../transport/useTransport.js'
@@ -35,6 +35,7 @@ export default function BookingList({
                 <div className="booking-card-heading">
                   <div>
                     <strong>{booking.pet_name}</strong>
+                    {booking.pet_breed && <span className="pet-breed">{booking.pet_breed}</span>}
                     <span>{booking.service_name} · {booking.customer_name}</span>
                   </div>
                   <span className="booking-list-price">{formatBRL(totalWithTransport(booking.price_cents, transport.map[booking.id]))}</span>
@@ -42,8 +43,9 @@ export default function BookingList({
                 <span className={`booking-status ${booking.status === 'completed' ? 'booking-status-completed' : 'booking-status-pending'}`}>
                   {booking.status === 'completed' ? 'Concluído' : 'Pendente'}
                 </span>
-                {booking.size_label && <span className="booking-size">{booking.size_label}</span>}
+                {booking.size_label && <span className="booking-size-pill">Porte {booking.size_label}</span>}
                 <TransportBadge request={transport.map[booking.id]} />
+                <span className="booking-code">Cód. <code>{shortCode(booking.id)}</code></span>
                 {booking.notes && (
                   <p className="booking-customer-note">
                     <strong>Observação do cliente</strong>

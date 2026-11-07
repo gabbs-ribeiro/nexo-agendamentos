@@ -801,3 +801,37 @@ export async function updateTransportDefaults(businessId, { startFeeCents, kmPri
   if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
 }
 
+// ---------------------------------------------------------------------------
+// Visao geral das reservas marcadas e busca por codigo (aba Calendario).
+// ---------------------------------------------------------------------------
+const UPCOMING_LIMIT = 150
+const UPCOMING_COMMON = 'id, status, service_name, size_label, customer_name, customer_phone, pet_name, pet_breed, notes'
+
+/** Reservas confirmadas de hoje em diante, dos tres tipos, em ordem de data. */
+export async function listUpcomingReservations(businessId, { todayYmd, startIso }) {
+  const [bookings, stays, daycare] = await Promise.all([
+    supabase.from('bookings').select(`${UPCOMING_COMMON}, price_cents, starts_at, ends_at, internal_notes`)
+      .eq('business_id', businessId).eq('status', 'confirmed').gte('starts_at', startIso)
+      .order('starts_at', { ascending: true }).limit(UPCOMING_LIMIT),
+    supabase.from('stay_bookings').select(`${UPCOMING_COMMON}, total_price_cents, check_in, check_out, check_in_at, check_out_at`)
+      .eq('business_id', businessId).eq('status', 'confirmed').gte('check_out', todayYmd)
+      .order('check_in', { ascending: true }).limit(UPCOMING_LIMIT),
+    supabase.from('daycare_bookings').select(`${UPCOMING_COMMON}, price_cents, period, starts_at, ends_at`)
+      .eq('business_id', businessId).eq('status', 'confirmed').gte('starts_at', startIso)
+      .order('starts_at', { ascending: true }).limit(UPCOMING_LIMIT),
+  ])
+  for (const result of [bookings, stays, daycare]) throwIfApiError(result.error, 'upcoming reservations select')
+  return {
+    booking: bookings.data ?? [],
+    stay: stays.data ?? [],
+    daycare: daycare.data ?? [],
+    limit: UPCOMING_LIMIT,
+  }
+}
+
+/** Reservas cujo codigo comeca com o texto digitado (qualquer data, qualquer status). */
+export async function findReservationsByCode(businessId, code) {
+  const data = await adminRpc('admin_find_reservations_by_code', { p_business_id: businessId, p_code: code })
+  return data.results ?? []
+}
+
