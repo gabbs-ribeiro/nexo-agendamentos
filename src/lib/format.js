@@ -117,3 +117,8 @@ export function whatsappUrl(contactPhone) {
   const d = digitsOnly(contactPhone)
   return /^\d{10,11}$/.test(d) ? `https://wa.me/55${d}` : null
 }
+
+/** Codigo curto da reserva (8 primeiros caracteres do id, em maiusculas): o que o cliente recebe. */
+export function shortCode(id) {
+  return String(id ?? '').replace(/-/g, '').slice(0, 8).toUpperCase()
+}

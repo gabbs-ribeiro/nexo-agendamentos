@@ -21,6 +21,7 @@ import ManualBookingDialog from './ManualBookingDialog.jsx'
 import StaysSection from './StaysSection.jsx'
 import TransportInbox from '../transport/TransportInbox.jsx'
 import DaycareSection from './DaycareSection.jsx'
+import UpcomingReservations from './UpcomingReservations.jsx'
 
 function greeting(timezone) {
   const hour = Number(new Intl.DateTimeFormat('en-US', {
@@ -317,6 +318,13 @@ export default function AgendaPage({ view }) {
 
       <StaysSection key={`stays-${reload}`} business={business} date={date} />
       <DaycareSection key={`daycare-${reload}`} business={business} date={date} />
+
+      {!isHome && (
+        <UpcomingReservations
+          key={`upcoming-${reload}`}
+          onPickDate={(ymd) => { pickDate(ymd); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+        />
+      )}
 
       {isHome && <BookingShareCard slug={business.slug} businessName={business.name} />}
 

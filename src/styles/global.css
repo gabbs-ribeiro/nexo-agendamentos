@@ -1153,3 +1153,59 @@ button.stay-exit-card:focus-visible { outline: 3px solid var(--brand); outline-o
 .add-size-form .size-weight-fields { grid-column: 1 / -1; }
 .public-size-option .size-weight { color: #6b3a14; font-weight: 800; }
 @media (max-width: 420px) { .size-weight-fields { grid-template-columns: minmax(0, 1fr); } }
+
+/* Cartao de agendamento: raca, porte em destaque e codigo */
+.pet-breed { display: block; margin-top: 1px; font-size: .9rem; font-weight: 600; opacity: .85; }
+.booking-size-pill {
+  display: inline-flex; align-items: center; margin: 4px 8px 0 0; padding: 5px 14px; border-radius: 999px;
+  font-size: .95rem; font-weight: 800; color: #4a2410; background: #ffd9c2; border: 1.5px solid #f2a58c;
+}
+.booking-code { display: block; margin-top: 8px; font-size: .82rem; opacity: .8; }
+.booking-code code { font: inherit; font-weight: 800; letter-spacing: .06em; }
+.booking-status-cancelled { color: #6b625c; background: #e9e3dd; }
+
+/* Visao geral das reservas marcadas e busca por codigo */
+.upcoming { margin-top: 8px; padding-top: 20px; border-top: 1.5px dashed var(--line); }
+.upcoming-search-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.upcoming-search-row .btn { width: auto; min-height: 48px; padding-inline: 22px; }
+.upcoming-kind { border: 1px solid var(--line); border-radius: 20px; background: #fffaf4; }
+.upcoming-kind > summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;
+  min-height: 52px; font-weight: 800; cursor: pointer; list-style: none;
+}
+.upcoming-kind > summary::-webkit-details-marker { display: none; }
+.upcoming-kind > summary::after { content: '▾'; margin-left: 8px; color: var(--muted); transition: transform .2s ease; }
+.upcoming-kind[open] > summary::after { transform: rotate(180deg); }
+.upcoming-kind > summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 20px; }
+.upcoming-kind > .agenda-empty { margin: 0 16px 16px; }
+.upcoming-groups { display: grid; gap: 18px; padding: 0 14px 16px; }
+.upcoming-date { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; font-size: 1rem; }
+.upcoming-date-button { padding: 0; border: 0; background: none; font: inherit; font-weight: 800; color: var(--ink); text-align: left; cursor: pointer; }
+.upcoming-date-button:hover { text-decoration: underline; }
+.reservation-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.reservation-card { display: grid; gap: 8px; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.reservation-card[data-status='cancelled'] { opacity: .75; }
+.reservation-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.reservation-card-pet { min-width: 0; }
+.reservation-card-pet strong { font-size: 1.1rem; overflow-wrap: anywhere; }
+.reservation-card-pet .pet-breed { color: var(--muted); }
+.reservation-card-service, .reservation-card-when, .reservation-card-meta { margin: 0; }
+.reservation-card-service { color: var(--muted); overflow-wrap: anywhere; }
+.reservation-card-when { font-weight: 800; }
+.reservation-card-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 0; }
+.reservation-card-tags .booking-status { margin-top: 4px; }
+.reservation-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.reservation-card-meta .booking-code { margin: 0; }
+.reservation-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.reservation-card-actions .btn { width: auto; min-height: 42px; padding-inline: 18px; }
+@media (max-width: 420px) { .upcoming-search-row { grid-template-columns: minmax(0, 1fr); } .upcoming-search-row .btn { width: 100%; } }
+.reservation-card .booking-status-pending { color: #6b3a14; background: #fde6c4; }
+.reservation-card .booking-status-completed { color: #1e5a3a; background: #d9f1e2; }
+.reservation-card .booking-status-cancelled { color: #6b625c; background: #e9e3dd; }
+.upcoming-search input[type='search'] {
+  width: 100%; min-width: 0; min-height: 48px; padding: 8px 14px; border: 1.5px solid var(--line);
+  border-radius: 14px; background: #fff; color: var(--ink); font: inherit; font-size: 1.05rem;
+  text-transform: uppercase; -webkit-appearance: none; appearance: none;
+}
+.upcoming-search input[type='search']::placeholder { text-transform: none; }
+.upcoming-search input[type='search']:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
