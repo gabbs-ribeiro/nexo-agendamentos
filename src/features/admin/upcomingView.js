@@ -80,12 +80,43 @@ export function normalizeCode(text) {
 }
 
 export const MIN_CODE_LENGTH = 4
+export const MIN_NAME_LENGTH = 2
+export const MAX_NAME_LENGTH = 80
+
+/** Normaliza nomes sem acentos e com espacos simples para busca local. */
+export function normalizeText(text) {
+  return String(text ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+/** O texto inteiro parece codigo e tem entre 4 e 32 caracteres hexadecimais? */
+export function looksLikeCode(text) {
+  const raw = String(text ?? '').trim()
+  const code = normalizeCode(raw)
+  return /^[0-9a-fA-F\s-]+$/.test(raw) && code.length >= MIN_CODE_LENGTH && code.length <= 32
+}
+
+/** Aceita codigo ou trecho de nome de tutor/pet dentro dos limites da RPC. */
+export function canSearch(text) {
+  const nameLength = normalizeText(text).length
+  return looksLikeCode(text) || (nameLength >= MIN_NAME_LENGTH && nameLength <= MAX_NAME_LENGTH)
+}
 
 /** Filtra itens ja carregados pelo codigo (busca instantanea, sem ir ao banco). */
 export function filterByCode(items, text) {
   const code = normalizeCode(text)
   if (code.length < MIN_CODE_LENGTH) return []
   return items.filter((item) => item.id.replace(/-/g, '').startsWith(code))
+}
+
+/** Filtra localmente por codigo, tutor ou pet quando a busca completa falha. */
+export function filterBySearch(items, text) {
+  const useCode = looksLikeCode(text)
+  const name = normalizeText(text)
+  const useName = name.length >= MIN_NAME_LENGTH && name.length <= MAX_NAME_LENGTH
+  if (!useCode && !useName) return []
+  const code = normalizeCode(text)
+  return items.filter((item) => (useCode && item.id.replace(/-/g, '').startsWith(code))
+    || (useName && (normalizeText(item.customerName).includes(name) || normalizeText(item.petName).includes(name))))
 }
 
 /** Item devolvido pela busca por codigo (qualquer data): sempre mostra a data. */

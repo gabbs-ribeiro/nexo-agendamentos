@@ -6,11 +6,19 @@ const BOOKING_TABLES = new Set(['bookings', 'daycare_bookings', 'stay_bookings']
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function isAuthorized(request, secret) {
-  const provided = request.headers.authorization ?? ''
+  const provided = request.headers?.authorization ?? ''
   const expected = `Bearer ${secret}`
   const providedBuffer = Buffer.from(provided)
   const expectedBuffer = Buffer.from(expected)
   return providedBuffer.length === expectedBuffer.length && timingSafeEqual(providedBuffer, expectedBuffer)
+}
+
+async function releaseEventClaim(supabase, eventKey) {
+  const { error } = await supabase
+    .from('push_notification_events')
+    .delete()
+    .eq('event_key', eventKey)
+  if (error) console.error('Could not release push event', error.code ?? 'unknown')
 }
 
 function parseWebhookBody(body) {
@@ -75,8 +83,14 @@ export default async function handler(request, response) {
     .eq('business_id', record.business_id)
 
   if (subscriptionsError) {
-    await supabase.from('push_notification_events').delete().eq('event_key', eventKey)
+    await releaseEventClaim(supabase, eventKey)
     console.error('Could not load push subscriptions', subscriptionsError.code ?? 'unknown')
+    return response.status(500).json({ error: 'Could not load push subscriptions' })
+  }
+
+  if (!Array.isArray(subscriptions)) {
+    await releaseEventClaim(supabase, eventKey)
+    console.error('Could not load push subscriptions', 'invalid response')
     return response.status(500).json({ error: 'Could not load push subscriptions' })
   }
 
@@ -85,7 +99,7 @@ export default async function handler(request, response) {
   try {
     setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
   } catch {
-    await supabase.from('push_notification_events').delete().eq('event_key', eventKey)
+    await releaseEventClaim(supabase, eventKey)
     console.error('VAPID configuration is invalid')
     return response.status(500).json({ error: 'Push notifications are not configured correctly' })
   }
@@ -118,7 +132,7 @@ export default async function handler(request, response) {
 
   const failed = results.filter((result) => result === 'failed').length
   if (failed) {
-    await supabase.from('push_notification_events').delete().eq('event_key', eventKey)
+    await releaseEventClaim(supabase, eventKey)
     console.error('Push delivery failed', { failed })
     return response.status(503).json({ error: 'Push delivery failed' })
   }

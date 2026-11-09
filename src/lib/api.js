@@ -829,9 +829,14 @@ export async function listUpcomingReservations(businessId, { todayYmd, startIso 
   }
 }
 
-/** Reservas cujo codigo comeca com o texto digitado (qualquer data, qualquer status). */
+/** Reservas por codigo, nome do tutor ou pet (qualquer data, qualquer status). */
+export async function searchReservations(businessId, query) {
+  const data = await adminRpc('admin_search_reservations', { p_business_id: businessId, p_query: query })
+  return { results: data.results ?? [], truncated: data.truncated === true }
+}
+
+/** Reservas cujo codigo comeca com o texto digitado (compatibilidade com chamadas existentes). */
 export async function findReservationsByCode(businessId, code) {
   const data = await adminRpc('admin_find_reservations_by_code', { p_business_id: businessId, p_code: code })
   return data.results ?? []
 }
-

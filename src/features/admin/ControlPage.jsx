@@ -634,6 +634,11 @@ export default function ControlPage() {
         <BusinessHoursSection businessId={business.id} bare />
       </ControlBar>
 
+      <ControlBar icon={<span className="control-bar-emoji" aria-hidden="true">🔔</span>} tone="lilac"
+        title="Notificações do navegador" summary="Avisos de novos agendamentos">
+        <PushNotificationsSection businessId={business.id} />
+      </ControlBar>
+
       <ControlBar icon={<IconSizes />} tone="sand" title="Portes disponíveis" summary={countLabel(activeSizeCount, 'porte ativo', 'portes ativos')}>
         <p className="muted">Os portes são compartilhados entre os serviços. Ao renomear um porte, o histórico já salvo permanece igual. Informe a faixa de peso de cada porte (por exemplo, de 5 a 10 kg) para o cliente identificar o porte do cachorro dele ao agendar; preencha só o "até" para "até 10 kg" ou só o "a partir de" para "a partir de 25 kg".</p>
         <div className="size-list">
