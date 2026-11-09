@@ -86,6 +86,10 @@ test('chave de idempotencia e um UUID v4', () => {
 
 test('erros: codigo conhecido vira mensagem; desconhecido nunca vaza texto bruto', () => {
   assert.equal(messageFor(new ApiError('SLOT_UNAVAILABLE')), ERROR_MESSAGES.SLOT_UNAVAILABLE)
+  assert.equal(ERROR_MESSAGES.DAYCARE_FULL,
+    'Este período não está disponível para agendamento. Escolha outro período ou dia.')
+  assert.equal(ERROR_MESSAGES.STAY_FULL,
+    'A hospedagem não está disponível nas datas ou horários escolhidos. Escolha outras opções.')
   assert.equal(new ApiError('ALGO_ESTRANHO: detalhe do banco').code, 'UNKNOWN')
   assert.equal(messageFor(new Error('duplicate key value violates unique constraint "x"')), ERROR_MESSAGES.UNKNOWN)
   for (const m of Object.values(ERROR_MESSAGES)) assert.ok(m.length > 10)

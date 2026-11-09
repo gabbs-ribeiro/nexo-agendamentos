@@ -173,7 +173,7 @@ export default function PeriodPage() {
           {notice && <Notice tone="error">{notice}</Notice>}
           {quote.status === 'loading' && <p className="status" role="status">Consultando vagas e preço…</p>}
           {quote.status === 'error' && <Notice tone="error">{quote.message}</Notice>}
-          {soldOut && <Notice tone="error">Este período acabou de atingir a capacidade máxima. Escolha outro período ou dia.</Notice>}
+          {soldOut && <Notice tone="error">Este período não está disponível para agendamento. Escolha outro período ou dia.</Notice>}
           {ready?.available && (
             <section className="stay-total" aria-live="polite">
               <p className="muted">{formatLongDate(date)} · {ready.local_start}–{ready.local_end}</p>

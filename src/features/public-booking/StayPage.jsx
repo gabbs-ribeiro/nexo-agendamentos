@@ -157,7 +157,7 @@ export default function StayPage() {
 
           {soldOut && (
             <Notice tone="error">
-              Esgotado nas datas escolhidas. Escolha outras datas
+              Não há disponibilidade nas datas escolhidas. Escolha outras datas
               {wa
                 ? <> ou <a href={wa} target="_blank" rel="noopener noreferrer">fale com o estabelecimento pelo WhatsApp</a></>
                 : ' ou entre em contato com o estabelecimento'}.
