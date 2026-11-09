@@ -1,5 +1,5 @@
 -- TESTE 13 — períodos de creche, preços por modalidade e hospedagem por horário.
--- Rodar SOMENTE em DEV após as migrations 20261023000001, 20261023000002 e 20261105000001.
+-- Rodar SOMENTE em DEV após as migrations de modelos e 20261109000001.
 -- Transação com ROLLBACK; esperado: PASS e nenhuma exceção.
 begin;
 
@@ -95,6 +95,11 @@ begin
   v_result := public.get_period_quote('loja-modelos', v_period_option, v_day + 1, 'afternoon');
   assert (v_result->>'available')::boolean and (v_result->>'price_cents')::int = 5500,
     'tarde deve continuar com vagas e usar seu próprio preço';
+  v_result := public.admin_create_time_block(
+    c_biz, (v_day + time '00:00') at time zone 'America/Sao_Paulo',
+    ((v_day + 1) + time '00:00') at time zone 'America/Sao_Paulo', 'Folga');
+  assert v_result->>'error' = 'BOOKING_CONFLICT',
+    'folga sobre reserva de creche ou hospedagem deve ser recusada: ' || v_result::text;
   v_result := public.create_public_period_booking(
     'loja-modelos', v_period_option, v_day + 2, 'morning',
     'Tutor idempotente', '41999996888', 'Pet idempotente',
@@ -182,6 +187,44 @@ begin
   select count(*) into v_count from public.stay_bookings
    where business_id = c_biz and check_in_at is not null;
   assert v_count = 5, 'hospedagem de meia diária deve preservar o snapshot: ' || v_count;
+
+  v_result := public.admin_create_time_block(
+    c_biz, ((v_day + 4) + time '00:00') at time zone 'America/Sao_Paulo',
+    ((v_day + 5) + time '00:00') at time zone 'America/Sao_Paulo', 'Folga');
+  assert coalesce((v_result->>'ok')::boolean, false),
+    'folga em data sem reservas deveria ser criada: ' || v_result::text;
+  v_result := public.get_period_quote('loja-modelos', v_period_option, v_day + 4, 'morning');
+  assert not (v_result->>'available')::boolean,
+    'cotacao da creche deveria respeitar a folga: ' || v_result::text;
+  v_result := public.create_public_period_booking(
+    'loja-modelos', v_period_option, v_day + 4, 'afternoon',
+    'Tutor folga', '41999997007', 'Pet folga', null, null, true, gen_random_uuid());
+  assert v_result->>'error' = 'DAYCARE_FULL',
+    'folga deveria impedir reserva de creche: ' || v_result::text;
+  v_result := public.admin_create_period_booking(
+    c_biz, v_period_option, v_day + 4, 'morning',
+    'Tutor folga painel', '41999997009', 'Pet folga painel', null, null);
+  assert v_result->>'error' = 'DAYCARE_FULL',
+    'folga deveria impedir reserva manual de creche: ' || v_result::text;
+
+  v_result := public.get_timed_stay_options('loja-modelos', v_stay_option, v_day + 4, '08:00');
+  assert coalesce((v_result->>'ok')::boolean, false)
+     and not exists (
+       select 1 from jsonb_array_elements(v_result->'options') o
+        where (o->>'available')::boolean
+     ),
+    'hospedagem temporizada deveria ficar indisponivel durante folga: ' || v_result::text;
+  v_result := public.create_public_timed_stay(
+    'loja-modelos', v_stay_option, v_day + 4, '08:00', v_day + 4, '20:00',
+    'Tutor folga hotel', '41999997008', 'Pet folga hotel',
+    null, null, true, gen_random_uuid());
+  assert v_result->>'error' = 'STAY_FULL',
+    'folga deveria impedir hospedagem temporizada: ' || v_result::text;
+  v_result := public.admin_create_timed_stay(
+    c_biz, v_stay_option, v_day + 4, '08:00', v_day + 4, '20:00',
+    'Tutor folga hotel painel', '41999997010', 'Pet folga hotel painel', null, null);
+  assert v_result->>'error' = 'STAY_FULL',
+    'folga deveria impedir hospedagem temporizada pelo painel: ' || v_result::text;
   raise notice 'PASS: modelos por período, janelas de horário, tarifas e estadias temporizadas';
 end;
 $$;
