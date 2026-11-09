@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shortCode } from '../src/lib/format.js'
 import {
-  dateHeading, filterByCode, groupByDate, normalizeCode, normalizeFound, normalizeReservation, whenLabel,
+  canSearch, dateHeading, filterByCode, filterBySearch, groupByDate, looksLikeCode, normalizeCode,
+  normalizeFound, normalizeReservation, normalizeText, whenLabel,
 } from '../src/features/admin/upcomingView.js'
 
 const TZ = 'America/Sao_Paulo'
@@ -92,4 +93,25 @@ test('filtra por codigo (minimo de 4 caracteres)', () => {
   assert.equal(filterByCode(items, 'abc').length, 0) // curto demais
   assert.equal(filterByCode(items, 'abcd-ef12').length, 1)
   assert.equal(filterByCode(items, 'zzzz').length, 0)
+})
+
+test('valida consultas por nome ou codigo', () => {
+  assert.equal(canSearch(' Ana '), true)
+  assert.equal(canSearch('joao'), true)
+  assert.equal(canSearch('a'), false)
+  assert.equal(canSearch('a'.repeat(81)), false)
+  assert.equal(looksLikeCode('AB12-cd34'), true)
+  assert.equal(looksLikeCode('joao costa'), false)
+  assert.equal(normalizeText('  João   PÊRA '), 'joao pera')
+})
+
+test('filtra localmente por codigo, tutor e pet sem diferenciar acentos ou caixa', () => {
+  const items = [
+    { id: 'abcdef12-0000-0000-0000-000000000000', customerName: 'João Pêra', petName: 'Pérola' },
+    { id: '12345678-0000-0000-0000-000000000000', customerName: 'Ana Costa', petName: 'Rex' },
+  ]
+  assert.deepEqual(filterBySearch(items, 'joao'), [items[0]])
+  assert.deepEqual(filterBySearch(items, 'PEROLA'), [items[0]])
+  assert.deepEqual(filterBySearch(items, '1234'), [items[1]])
+  assert.deepEqual(filterBySearch(items, 'a'), [])
 })

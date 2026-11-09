@@ -26,6 +26,8 @@
 | 17 | `tests/17_size_weight_ranges.sql` | Faixa de peso por porte: completa, só máximo e só mínimo; máximo menor que o mínimo, peso negativo, máximo zero e acima de 999 recusados; `list_public_sizes` devolve as faixas só dos portes ativos; usuário sem vínculo não altera; anon só lê a lista | só PASS | ☐ executar após a migration `20261026000001` |
 | 19 | `tests/19_booking_horizon_admin_no_limits.sql` | Janela padrão de 60 dias; cliente vê horários, cotação e saídas até 60 dias e não além; painel lista, cota e cria horário, creche e hospedagem a 70 dias; hospedagem de 12h é criada por meia diária; passado continua fora; capacidade da creche vale no painel; reservas do painel ficam `admin` sem consentimento; usuário sem vínculo e anon sem acesso | só PASS | ⚠️ responsável relata aplicação da `20261028000001`; teste falhou ao criar hospedagem de 12h. Aplicar `20261105000001` e repetir 19 e 04 |
 | 20 | `tests/20_find_reservations_by_code.sql` | Busca por código: exato, minúsculas com traço, com espaços; reserva cancelada continua achada; inexistente devolve lista vazia; curto e inválido recusados; usuário de outro negócio recebe NOT_FOUND; anon sem acesso | só PASS | ☐ executar após a migration `20261106000001` |
+| 21 | `tests/21_browser_push_notifications.sql` | RLS ligada nas tabelas; anon sem acesso; eventos inacessíveis a anon/authenticated; política de inserção para authenticated presente | só PASS | ☐ executar após a migration `20261107000001` |
+| 22 | `tests/22_search_reservations.sql` | Busca por código, nome parcial de tutor e pet; ignora caixa/acentos e espaços repetidos; inclui canceladas; limita e sinaliza resultados; rejeita consultas inválidas; isolamento por negócio e anon sem acesso | só PASS | ☐ executar após a migration `20261107000002` |
 
 No DEV, o responsável confirmou que as migrations 06 e 07 foram aplicadas e executou o teste 09. As verificações de catálogo avançaram; a falha atual indica que `get_available_slots` não filtrou o porte desativado. A migration `20261021000008_restore_active_size_slot_filter.sql` restaura esse filtro; aplique-a somente no DEV e rode novamente o teste 09, que verifica também a rejeição da reserva para a opção inativa. O schema `supabase_migrations.schema_migrations` não existe porque o projeto foi atualizado manualmente pelo SQL Editor; isso não informa quais scripts já foram executados. Confira o estado antes de reaplicar migrations. A migration 05 requer a 04; aplique/valide pendências e rode também 01, 04 e 10. As migrations `20261022000001` e `20261022000002` exigem as anteriores até a 08; depois delas rode 12, 11, 04 e 09. As migrations `20261023000001` e `20261023000002` devem ser conferidas/aplicadas nessa ordem; rode 13, 14 e 04 depois da 02. Repita **04** após qualquer migration nova; a primeira consulta deve retornar 0 linhas. Não reaplique migrations não idempotentes sem conferir o schema.
 
@@ -51,7 +53,7 @@ Coberto: várias reservas simultâneas (mesmo horário, horários conflitantes, 
 Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comportamento do pooler do Supabase sob carga real; limites de e-mail do Auth (recuperação de senha); CAPTCHA.
 
 ## Front (agendamento público e painel)
-**Automático (Node, sem navegador):** `npm test` → 57 testes, incluindo apresentação histórica, seleção de preço/duração por porte, fusos, montagem segura do link público, agrupamento por categoria, expediente, modelos de agendamento e intervalos de horário. Última execução: `# pass 57`, `# fail 0`.
+**Automático (Node, sem navegador):** `npm test` → 89 testes, incluindo busca por tutor/pet, decodificação da chave pública VAPID e validação do endpoint push. Última execução: `# pass 89`, `# fail 0`.
 
 **Login (manual no navegador, contra o DEV):**
 - [ ] `/login` abre o formulário sem consultar um estabelecimento com slug `login`.
@@ -182,3 +184,15 @@ Fluxo completo com navegador e fuso diferente do negócio; logo/Storage; comport
 - [ ] Buscar pelo código que o cliente recebeu na confirmação encontra a reserva (também passada ou cancelada); digitar só o começo (4+ caracteres) funciona; código inexistente mostra "Nenhum agendamento encontrado"; mais de um resultado mostra o aviso.
 - [ ] Criar um agendamento manual atualiza a lista; sem rolagem horizontal em 320 px.
 
+**Busca por tutor e pet (manual no navegador; migration 20261107000002):**
+- [ ] Buscar por parte do nome do tutor ou do pet encontra reservas dos três tipos, inclusive passadas e canceladas; caixa, acentos e espaços repetidos não impedem a correspondência.
+- [ ] Consultas por nome aceitam 2 a 80 caracteres; códigos continuam aceitando prefixos hexadecimais de 4 a 32 caracteres.
+- [ ] Com mais de 30 correspondências, são mostradas as 30 mais recentes e aparece o aviso de truncamento; sem resultados, a tela informa que nada foi encontrado.
+- [ ] Se a busca no banco falhar, a alternativa local filtra a lista já carregada por código, tutor ou pet e informa essa limitação.
+
+**Notificações push do navegador (manual; migration 20261107000001):**
+- [ ] Controle → Notificações do navegador: ativar pede permissão e registra apenas o navegador, usuário e negócio atuais; desativar remove o registro.
+- [ ] Com o painel fechado, novos agendamentos de horário, hospedagem e creche geram aviso genérico; clicar abre o painel.
+- [ ] A migration e o teste 21 são aplicados/rodados somente em DEV após conferir o estado do banco; testar também `supabase/tests/04_permission_audit.sql`.
+- [ ] Configurar na Vercel somente variáveis server-side `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_WEBHOOK_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT`; `VITE_VAPID_PUBLIC_KEY` contém apenas a chave pública.
+- [ ] Configurar três Database Webhooks (INSERT em `bookings`, `daycare_bookings` e `stay_bookings`) para `/api/booking-created`, usando o segredo compartilhado no header `Authorization`. Nenhuma variável ou webhook deve ser configurado sem aprovação humana.

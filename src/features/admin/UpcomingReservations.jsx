@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Notice from '../../components/Notice.jsx'
-import { findReservationsByCode, listUpcomingReservations } from '../../lib/api.js'
+import { listUpcomingReservations, searchReservations } from '../../lib/api.js'
 import { messageFor } from '../../lib/errors.js'
 import { todayInTz } from '../../lib/format.js'
 import { useTransportRequests } from '../transport/useTransport.js'
@@ -8,7 +8,7 @@ import { useAdminBusiness } from './AdminBusinessContext.jsx'
 import { dateRangeInTimezone } from './bookingView.js'
 import ReservationCard from './ReservationCard.jsx'
 import {
-  KIND_LABELS, KIND_ORDER, MIN_CODE_LENGTH, dateHeading, filterByCode, groupByDate, normalizeCode,
+  KIND_LABELS, KIND_ORDER, canSearch, dateHeading, filterBySearch, groupByDate, looksLikeCode,
   normalizeFound, normalizeReservation,
 } from './upcomingView.js'
 
@@ -50,15 +50,15 @@ export default function UpcomingReservations({ onPickDate }) {
   async function submitSearch(event) {
     event.preventDefault()
     setNotice('')
-    if (normalizeCode(query).length < MIN_CODE_LENGTH) {
-      setSearch({ status: 'done', results: [], error: `Digite pelo menos ${MIN_CODE_LENGTH} caracteres do código (letras de A a F e números).`, query })
+    if (!canSearch(query)) {
+      setSearch({ status: 'done', results: [], error: 'Digite pelo menos 2 caracteres do nome do tutor ou do pet, ou 4 caracteres do código.', query })
       return
     }
     setSearch({ status: 'loading' })
-    const local = filterByCode(allLoaded, query)
+    const local = filterBySearch(allLoaded, query)
     try {
-      const rows = await findReservationsByCode(business.id, query)
-      setSearch({ status: 'done', results: rows.map((row) => normalizeFound(row, business.timezone)), query })
+      const { results, truncated } = await searchReservations(business.id, query)
+      setSearch({ status: 'done', results: results.map((row) => normalizeFound(row, business.timezone)), truncated, query })
     } catch (error) {
       // Sem a busca completa (ex.: banco ainda sem a atualizacao) ainda mostramos o que ja esta na lista.
       if (local.length > 0) {
@@ -85,31 +85,34 @@ export default function UpcomingReservations({ onPickDate }) {
 
       <form className="upcoming-search" role="search" onSubmit={submitSearch}>
         <div className="field">
-          <label htmlFor="upcoming-code">Buscar pelo código do agendamento</label>
+          <label htmlFor="upcoming-code">Buscar por código, tutor ou pet</label>
           <div className="upcoming-search-row">
             <input id="upcoming-code" type="search" inputMode="text" autoComplete="off" autoCapitalize="characters"
-              placeholder="Ex.: AB12CD34" value={query} onChange={(event) => setQuery(event.target.value)} />
+              placeholder="Ex.: AB12CD34 ou nome do tutor" value={query} onChange={(event) => setQuery(event.target.value)} />
             <button type="submit" className="btn btn-primary" disabled={search.status === 'loading'}>
               {search.status === 'loading' ? 'Buscando…' : 'Buscar'}
             </button>
           </div>
-          <span className="hint">É o código que o cliente recebe ao agendar. Você pode digitar só o começo.</span>
+          <span className="hint">Digite o nome do tutor ou do pet (não precisa de acento) ou o código que o cliente recebeu.</span>
         </div>
       </form>
 
       {search.status === 'done' && (
         <div className="upcoming-results stack-sm" aria-live="polite">
           <div className="stay-admin-heading">
-            <h3>Resultado da busca</h3>
+            <h3>Resultado da busca{!search.error && search.results.length > 0 ? ` · ${search.results.length}` : ''}</h3>
             <button type="button" className="btn-text" onClick={clearSearch}>Limpar busca</button>
           </div>
           {search.error && <Notice tone="error">{search.error}</Notice>}
           {notice && <Notice>{notice}</Notice>}
           {!search.error && search.results.length === 0 && (
-            <p className="agenda-empty">Nenhum agendamento encontrado com o código “{normalizeCode(search.query).toUpperCase()}”.</p>
+            <p className="agenda-empty">Nenhum agendamento encontrado para “{search.query.trim()}”.</p>
           )}
-          {search.results.length > 1 && (
-            <p className="hint">Mais de um agendamento começa com esse código. Confira o nome do cliente e do pet.</p>
+          {search.results.length > 1 && looksLikeCode(search.query) && (
+            <p className="hint">Mais de um resultado. Confira o nome do tutor, do pet e o código.</p>
+          )}
+          {search.truncated && (
+            <p className="hint">Mostrando os 30 mais recentes. Digite mais letras do nome para refinar a busca.</p>
           )}
           {search.results.length > 0 && (
             <ol className="reservation-list">
