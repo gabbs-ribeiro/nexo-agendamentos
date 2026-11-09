@@ -594,6 +594,11 @@ export default function ControlPage() {
       />
 
       <div className="control-bars">
+      <ControlBar icon={<span className="control-bar-emoji" aria-hidden="true">🔔</span>} tone="lilac"
+        title="Notificações do navegador" summary="Avisos de novos agendamentos">
+        <PushNotificationsSection businessId={business.id} />
+      </ControlBar>
+
       <ControlBar icon={<IconProfile />} tone="peach" title="Perfil público" summary="Nome, WhatsApp e cor">
         <p className="muted">Nome e cor também aparecem na página de agendamento.</p>
         <form className="control-form" onSubmit={saveProfile}>
