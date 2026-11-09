@@ -124,6 +124,11 @@ begin
 
   -- limite por telefone (2 estadias futuras)
   v_result := public.create_public_stay(
+    'loja-hotel', v_hotel_opt, v_d + 12, v_d + 13,
+    'Tutor 6', '41999991006', 'Pet 6', null, null, true, gen_random_uuid());
+  assert coalesce((v_result->>'ok')::boolean, false),
+    'primeira estadia do telefone falhou: ' || v_result::text;
+  v_result := public.create_public_stay(
     'loja-hotel', v_hotel_opt, v_d + 14, v_d + 15,
     'Tutor 6', '41999991006', 'Pet 6', null, null, true, gen_random_uuid());
   assert coalesce((v_result->>'ok')::boolean, false), 'segunda estadia do telefone falhou: ' || v_result::text;

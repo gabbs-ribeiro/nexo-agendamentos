@@ -311,7 +311,7 @@ export default function TimedStayPage() {
                               </span>
                             )}
                             {status === 'full' && (
-                              <span className="stay-exit-warn"><span aria-hidden="true">⛔ </span>Esgotado neste horário.</span>
+                              <span className="stay-exit-warn"><span aria-hidden="true">⛔ </span>Indisponível neste horário.</span>
                             )}
                             {status === 'unavailable' && (
                               <span className="stay-exit-warn"><span aria-hidden="true">⛔ </span>Indisponível para esta reserva.</span>
