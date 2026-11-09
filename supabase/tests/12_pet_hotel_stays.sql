@@ -1,6 +1,6 @@
--- TESTE 12 — hospedagem por diaria (pet hotel): capacidade, independencia da agenda,
+-- TESTE 12 — hospedagem por diaria (pet hotel): capacidade, bloqueios da agenda,
 -- idempotencia, limites, permissoes e isolamento.
--- Rodar SOMENTE em DEV apos as migrations 20261022000001 e 20261022000002.
+-- Rodar SOMENTE em DEV apos as migrations de hospedagem e 20261109000001.
 -- Transacao com ROLLBACK; esperado: PASS e nenhuma excecao.
 begin;
 
@@ -102,15 +102,25 @@ begin
   -- e a agenda ocupada nao reduz as vagas do hotel
   v_result := public.get_stay_quote('loja-hotel', v_hotel_opt, v_d + 10, v_d + 12);
   assert (v_result->>'available')::boolean, 'banho e tosa nao pode consumir vagas do hotel';
-  -- folga (bloqueio) da agenda nao afeta o hotel
+  -- uma folga nao pode ser marcada sobre uma estadia existente
+  v_result := public.admin_create_time_block(
+    c_biz, (v_d + 1 + time '00:00') at time zone 'America/Sao_Paulo',
+    (v_d + 2 + time '00:00') at time zone 'America/Sao_Paulo', 'Folga');
+  assert v_result->>'error' = 'BOOKING_CONFLICT',
+    'folga sobre estadia existente deveria ser recusada: ' || v_result::text;
+  -- folga da agenda bloqueia disponibilidade e criacao de estadia
   v_result := public.admin_create_time_block(
     c_biz, (v_d + 10 + time '00:00') at time zone 'America/Sao_Paulo',
-    (v_d + 11 + time '00:00') at time zone 'America/Sao_Paulo', 'folga');
+    (v_d + 11 + time '00:00') at time zone 'America/Sao_Paulo', 'Folga');
   assert coalesce((v_result->>'ok')::boolean, false), 'bloqueio falhou: ' || v_result::text;
+  v_result := public.get_stay_quote('loja-hotel', v_hotel_opt, v_d + 10, v_d + 12);
+  assert not (v_result->>'available')::boolean,
+    'orcamento do hotel deveria respeitar a folga: ' || v_result::text;
   v_result := public.create_public_stay(
     'loja-hotel', v_hotel_opt, v_d + 10, v_d + 12,
     'Tutor 6', '41999991006', 'Pet 6', null, null, true, gen_random_uuid());
-  assert coalesce((v_result->>'ok')::boolean, false), 'folga da agenda bloqueou o hotel: ' || v_result::text;
+  assert v_result->>'error' = 'STAY_FULL',
+    'folga da agenda deveria impedir a estadia: ' || v_result::text;
 
   -- limite por telefone (2 estadias futuras)
   v_result := public.create_public_stay(
