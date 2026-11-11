@@ -2,7 +2,7 @@
 
 Sistema de agendamento multi-negócio. MVP: banho e tosa de pets. Stack: React + Vite, Supabase (Postgres + Auth), Vercel.
 
-> **Status atual:** as migrations são aplicadas manualmente no DEV via SQL Editor. O responsável aplicou as migrations 06 e 07; o teste 09 avançou, mas revelou que `get_available_slots` ainda oferece horários para um porte desativado. Aplique `20261021000008_restore_active_size_slot_filter.sql` somente em DEV e repita o teste 09. As migrations de categorias/expediente também precisam ser validadas conforme o schema instalado. URL e chave pública anon estão na Vercel; o usuário responsável foi criado manualmente no Supabase Auth.
+> **Status atual:** as migrations são aplicadas manualmente no DEV via SQL Editor. URL e chave pública anon estão na Vercel; o usuário responsável foi criado manualmente no Supabase Auth.
 
 ## Estrutura
 ```
