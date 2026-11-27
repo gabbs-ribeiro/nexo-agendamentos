@@ -25,13 +25,19 @@ export default function TransportRequestCard({ slug, business, kind, bookingRef,
     getTransportState(slug, kind, bookingRef)
       .then((data) => {
         if (!active) return
-        setState(data.enabled ? { status: 'ready', requestStatus: data.request_status } : { status: 'hidden' })
+        if (data.request_status) {
+          setState({ status: 'existing', requestStatus: data.request_status })
+        } else if (data.offered ?? data.enabled) {
+          setState(data.enabled ? { status: 'ready' } : { status: 'unavailable' })
+        } else {
+          setState({ status: 'hidden' })
+        }
       })
       .catch(() => { if (active) setState({ status: 'hidden' }) }) // recurso opcional: some se algo falhar
     return () => { active = false }
   }, [slug, kind, bookingRef])
 
-  if (state.status !== 'ready') return null
+  if (state.status === 'hidden' || state.status === 'loading') return null
 
   const generalUrl = whatsappUrl(business.contact_phone)
   const code = String(bookingRef).slice(0, 8).toUpperCase()
@@ -79,12 +85,22 @@ export default function TransportRequestCard({ slug, business, kind, bookingRef,
   }
 
   // Pedido que ja existia (por exemplo, ao reabrir esta tela)
-  if (state.requestStatus) {
+  if (state.status === 'existing') {
     return (
       <section className="transport-request-card">
         <h2><span aria-hidden="true">🚗</span> Leva e traz solicitado</h2>
         <p>Seu pedido já está com o estabelecimento, que vai combinar os detalhes com você.</p>
         {generalUrl && <a className="btn btn-quiet" href={generalUrl} target="_blank" rel="noopener noreferrer">Falar pelo WhatsApp</a>}
+      </section>
+    )
+  }
+
+  if (state.status === 'unavailable') {
+    return (
+      <section className="transport-request-card">
+        <h2><span aria-hidden="true">🚗</span> Precisa de leva e traz?</h2>
+        <p>O serviço está temporariamente indisponível.</p>
+        <button type="button" className="btn btn-quiet" disabled>Solicitar leva e traz</button>
       </section>
     )
   }

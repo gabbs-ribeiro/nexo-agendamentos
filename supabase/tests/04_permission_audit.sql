@@ -28,6 +28,7 @@ allowed_auth(fn) as (values
   ('admin_create_period_booking'), ('admin_create_timed_stay'),
   ('admin_find_reservations_by_code'), ('admin_search_reservations'),
   ('get_transport_state'), ('request_transport'), ('admin_save_transport_quote'), ('admin_set_transport_status'),
+  ('admin_set_transport_availability'),
   ('get_public_booking_models'), ('get_period_quote'), ('create_public_period_booking'),
   ('get_timed_stay_options'), ('create_public_timed_stay'),
   ('admin_save_service_booking_settings'), ('admin_list_daycare_on_date'),
