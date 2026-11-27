@@ -447,7 +447,9 @@ const UNDEFINED_COLUMN = '42703' // Postgres: coluna ainda nao existe (migration
 export async function getBusinessControl(businessId) {
   const base = 'id, name, logo_path, primary_color, contact_phone'
   const run = (columns) => supabase.from('businesses').select(columns).eq('id', businessId).single()
-  let { data, error } = await run(`${base}, transport_start_fee_cents, transport_km_price_cents`)
+  const transportColumns = `${base}, transport_start_fee_cents, transport_km_price_cents`
+  let { data, error } = await run(`${transportColumns}, transport_service_enabled`)
+  if (error?.code === UNDEFINED_COLUMN) ({ data, error } = await run(transportColumns))
   // Sem a migration do leva e traz o Controle continua abrindo (sem a secao de valores).
   if (error?.code === UNDEFINED_COLUMN) ({ data, error } = await run(base))
   throwIfApiError(error, 'business control select')
@@ -696,7 +698,7 @@ export async function reactivateService(businessId, serviceId) {
 const TRANSPORT_KIND_COLUMN = { booking: 'booking_id', stay: 'stay_id', daycare: 'daycare_id' }
 const TRANSPORT_COLUMNS = 'id, business_id, booking_id, stay_id, daycare_id, status, requested_by, street, street_number, neighborhood, city, complement, reference, distance_km, start_fee_cents, km_price_cents, freight_cents, quoted_at, confirmed_at, created_at'
 
-/** Cliente: { enabled, request_status } da reserva. */
+/** Cliente: { offered, enabled, request_status } da reserva. */
 export async function getTransportState(slug, kind, ref) {
   const data = await rpc('get_transport_state', { p_slug: slug, p_kind: kind, p_ref: ref })
   if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
@@ -799,6 +801,15 @@ export async function updateTransportDefaults(businessId, { startFeeCents, kmPri
     .maybeSingle()
   throwIfApiError(error, 'transport defaults update')
   if (!data) throw new ApiError('AUTH_ACCESS_DENIED')
+}
+
+/** Painel: ativa ou pausa novas solicitacoes publicas de leva e traz. */
+export async function updateTransportAvailability(businessId, enabled) {
+  const data = await adminRpc('admin_set_transport_availability', {
+    p_business_id: businessId,
+    p_enabled: enabled,
+  })
+  if (!data || data.ok !== true) throw new ApiError(data?.error ?? 'UNKNOWN')
 }
 
 // ---------------------------------------------------------------------------

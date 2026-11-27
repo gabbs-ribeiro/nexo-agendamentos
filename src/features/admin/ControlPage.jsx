@@ -13,6 +13,7 @@ import {
   removeBusinessLogo,
   saveBusinessSize,
   saveServiceCategory,
+  updateTransportAvailability,
   updateTransportDefaults,
   saveService,
   reactivateService,
@@ -82,6 +83,7 @@ export default function ControlPage() {
   const [transportError, setTransportError] = useState('')
   const [transportNotice, setTransportNotice] = useState('')
   const [savingTransport, setSavingTransport] = useState(false)
+  const [savingTransportAvailability, setSavingTransportAvailability] = useState(false)
   const [profileDraft, setProfileDraft] = useState({ name: '', primary_color: '#ef946f' })
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoError, setPhotoError] = useState('')
@@ -211,6 +213,7 @@ export default function ControlPage() {
   }
 
   const transportSupported = profile?.transport_start_fee_cents !== undefined
+  const transportAvailabilitySupported = profile?.transport_service_enabled !== undefined
   const transportStart = parseMoneyToCents(transportDraft.start)
   const transportKmPrice = parseMoneyToCents(transportDraft.kmPrice)
   const transportExample = transportStart != null && transportKmPrice != null
@@ -237,6 +240,26 @@ export default function ControlPage() {
       setTransportError(messageFor(error))
     } finally {
       setSavingTransport(false)
+    }
+  }
+
+  async function saveTransportAvailability(event) {
+    const enabled = event.target.checked
+    const previous = profile.transport_service_enabled
+    setTransportError('')
+    setTransportNotice('')
+    setSavingTransportAvailability(true)
+    setProfile((current) => ({ ...current, transport_service_enabled: enabled }))
+    try {
+      await updateTransportAvailability(business.id, enabled)
+      setTransportNotice(enabled
+        ? 'Leva e traz ativado para novas solicitações.'
+        : 'Leva e traz desativado para novas solicitações. Pedidos existentes foram preservados.')
+    } catch (error) {
+      setProfile((current) => ({ ...current, transport_service_enabled: previous }))
+      setTransportError(messageFor(error))
+    } finally {
+      setSavingTransportAvailability(false)
     }
   }
 
@@ -963,11 +986,23 @@ export default function ControlPage() {
       </ControlBar>
 
       <ControlBar icon={<span className="control-bar-emoji" aria-hidden="true">🚗</span>} tone="sand" title="Leva e traz"
-        summary={transportSupported ? `Taxa R$ ${transportDraft.start} · R$ ${transportDraft.kmPrice}/km` : 'Taxa e valor por km'}>
+        summary={transportSupported
+          ? `Taxa R$ ${transportDraft.start} · R$ ${transportDraft.kmPrice}/km${transportAvailabilitySupported ? ` · ${profile.transport_service_enabled ? 'Ativo' : 'Desativado'}` : ''}`
+          : 'Taxa e valor por km'}>
         {!transportSupported ? (
           <p className="muted">Este recurso ainda não está disponível neste ambiente. Peça a atualização do banco de dados.</p>
         ) : (
           <form className="control-form" onSubmit={saveTransportDefaults}>
+            {transportAvailabilitySupported && (
+              <label className="transport-toggle">
+                <input type="checkbox" checked={profile.transport_service_enabled}
+                  onChange={saveTransportAvailability} disabled={savingTransportAvailability} />
+                <span className="transport-toggle-copy">
+                  <strong>Disponibilidade geral: {profile.transport_service_enabled ? 'Ativo' : 'Desativado'}</strong>
+                  <small>Desativar impede novos pedidos dos clientes e preserva as solicitações já registradas.</small>
+                </span>
+              </label>
+            )}
             <p className="muted">
               Valores usados na calculadora de cada reserva. Você informa só a distância de ida; o frete considera ida e volta
               da busca e da entrega (4×) e soma a taxa de partida. Ative o leva e traz em cada serviço, ao editá-lo.
